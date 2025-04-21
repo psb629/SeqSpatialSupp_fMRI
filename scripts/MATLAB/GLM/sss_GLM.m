@@ -94,7 +94,7 @@ switch(what)
         % R2 = construct_dsgmat(sprintf('R%02d',sn),glm);
         % R = combine_behavdata(R1,R2);
 
-        fname = fullfile(dir_git,'diedrichsenlab/SeqSpatialSupp_fMRI/participants.tsv');
+        fname = fullfile(dir_git,'SeqSpatialSupp_fMRI/participants.tsv');
         [subj_id, S_id] = get_id(fname, sn);
         behav_data = fullfile(workdir,behavDir,sprintf('sub-%s/ssh__%s.dat',subj_id,subj_id));
         R = construct_dsgmat(behav_data,glm);
@@ -239,7 +239,7 @@ switch(what)
         sn = [];
         fig = 0;
         vararginoptions(varargin, {'sn', 'glm','fig'});
-        fname = fullfile(dir_git,'diedrichsenlab/SeqSpatialSupp_fMRI/participants.tsv');
+        fname = fullfile(dir_git,'SeqSpatialSupp_fMRI/participants.tsv');
         [subj_id, S_id] = get_id(fname, sn);
         load(fullfile(baseDir,sprintf(glmDir, glm), subj_id, 'SPM.mat'));
         SPM.swd = fullfile(baseDir,sprintf(glmDir, glm), subj_id);
@@ -280,7 +280,7 @@ switch(what)
         Nums    = [];
         C       = []; % contrast matrix
         % optimize= 1;
-        fname = fullfile(dir_git,'diedrichsenlab/SeqSpatialSupp_fMRI/participants.tsv');
+        fname = fullfile(dir_git,'SeqSpatialSupp_fMRI/participants.tsv');
         [subj_id, S_id] = get_id(fname, sn);
 
         % vararginoptions(varargin(3:end),{'optimize'});
@@ -523,7 +523,7 @@ switch(what)
         vararginoptions(varargin, {'sn', 'glm'});
         
         % Loop over the subjects
-        fname = fullfile(dir_git,'diedrichsenlab/SeqSpatialSupp_fMRI/participants.tsv');
+        fname = fullfile(dir_git,'SeqSpatialSupp_fMRI/participants.tsv');
         [subj_id, S_id] = get_id(fname, sn);
         % Go to subject's directory and load SPM info
         cd(fullfile(baseDir,sprintf(glmDir, glm), subj_id));
