@@ -1,0 +1,10 @@
+1. 행동 데이터:
+세션 S vs. 세션 R 에서, MT의 경우 오히려 후반부 세션(R)에서 증가하는 경향이 있음. 이는 피험자들이 정확성을 높이기 위해서 신중을 기하기 때문인가? 그렇다면 빠르게 입력하면 error rate가 증가하고, 느리게 입력하면 error rate가 감소하는 경향이 뚜렷히 보이는가?
+
+이 질문에 답하기 위해서 한 trial 안에서도 각 손가락 입력별 MT을 구했음. The meaning of the dots in this figure became unclear during the data reduction process. However, the aim was to examine the error rate based on tapping speed for each finger.
+
+2. RS-effect:
+각 ROI들(11개) 안에서 within letter/spatial or across letter/spatial 의 세션별 차이가 유의미한가?
+
+3. RSA:
+pattern component model 
