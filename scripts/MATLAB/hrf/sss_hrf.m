@@ -18,6 +18,7 @@ imagingRawDir   = 'imaging_data_raw';           % Temporary directory for raw fu
 imagingDir      = 'imaging_data';               % Preprocesses functional data
 anatomicalDir   = 'anatomicals';                % Preprocessed anatomical data (LPI + center AC + segemnt)
 fmapDir         = 'fieldmaps';                  % Fieldmap dir after moving from BIDS and SPM make fieldmap
+wbDir           = 'surfaceWB';
 suitDir         = 'suit';
 regDir          = 'RegionOfInterest';
 roiDir          = 'ROI';
@@ -27,6 +28,7 @@ dir_git = 'D:/mobaxterm/sungbeenpark/github';
 if exist(dir_git, 'dir') && ~contains(path, dir_git)
     addpath(genpath(dir_git));
 end
+atlasDir = fullfile(dir_git,'SeqSpatialSupp_fMRI/atlas');
 
 % Read info from participants .tsv file 
 hem = {'L', 'R'};
@@ -53,7 +55,7 @@ switch(what)
         
         ROI_name={'','SMA','PMv','PMd','M1','S1','SPLa','SPLp','DSVC','MT+','VSVC','EAC'};  % important! add the first ''
                 
-        pathtosurf=fullfile(atlasDir,sprintf('FS_LR_%s',surf));
+        pathtosurf=fullfile(atlasDir,sprintf('FS_LR_%sk',surf));
         P_glasser=gifti(fullfile(pathtosurf,sprintf('Glasser_2016.%sk.%s.label.gii',surf,hem{h})));
         P_brodmann=gifti(fullfile(pathtosurf,sprintf('ROI.%sk.%s.label.gii',surf,hem{h})));
         P=zeros(size(P_glasser.cdata));
@@ -74,12 +76,12 @@ switch(what)
             end
         end
         
-        
         % create a label
         G=surf_makeLabelGifti(P,'labelNames',ROI_name);
-        groupDir=fullfile(baseDir,wbDir,sprintf('group%sk',surf));
-        file=fullfile(groupDir,sprintf('ROI.%s.%s.label.gii',hem{h},'SSS'));
-        save(G,file);
+        fname=fullfile(atlasDir,sprintf('fs_LR_32k/ROI.%s.%s.label.gii',hem{h},'SSS'));
+        if ~exist(fname,'file')
+            save(G,fname,'-v7.3');
+        end
         fprintf(1,'Done.\n');
         
         varargout={P,ROI_name};
@@ -90,11 +92,11 @@ switch(what)
         hemis=1;
         % sn=subj_vec;
         glm=0;  % change this glm=1 for S01-S06
-        surf='32';        
+        surf='32';
         [P,ROI_name]=sss_hrf('ROI:findall');
-        % 왜 그룹 마스크? 개인 마스크가 아니고?
-        PP = load('/srv/diedrichsen/data/SeqSpatialSupp_fMRI/surfaceWB/group32k/fmask_data.mat');
-        P = (PP.mask'~=0).*P;
+        % 왜 그룹 마스크? 개인 마스크가 아니고? -> # of voxels 수를 맞추기 위해?
+        %PP = load('/srv/diedrichsen/data/SeqSpatialSupp_fMRI/surfaceWB/group32k/fmask_data.mat');
+        %P = (PP.mask'~=0).*P;
         vararginoptions(varargin,{'sn','glm'});
         n_roi=length(ROI_name)-1;
         
@@ -103,35 +105,67 @@ switch(what)
 
         fprintf('%s...\n',subj_id);
         R=cell(1,1);
-        surfDir=fullfile(baseDir, wbDir,S_id);
+        surfDir=fullfile(baseDir,wbDir,S_id);
         
         idx=0;
         
         for h=hemis
             file=fullfile(baseDir,sprintf(glmDir,glm),subj_id,'mask.nii');
-            pathtosurf=fullfile(atlasDir,sprintf('FS_LR_%s',surf));
-            surface=fullfile(pathtosurf,sprintf('fs_LR.%sk.%s.flat.surf.gii',surf,hem{h}));
+            % pathtosurf=fullfile(atlasDir,sprintf('fs_LR_%sk',surf));
+            % surface=fullfile(pathtosurf,sprintf('fs_LR.%sk.%s.flat.surf.gii',surf,hem{h}));
+            surface = fullfile('F:/Atlas/fs_LR_32/fs_LR.32k.L.flat.surf.gii');
             for r=1:n_roi
                 idx=idx+1;
                 R{idx}.type     = 'surf_nodes';
                 R{idx}.white    = fullfile(surfDir,sprintf('%s.%s.white.%sk.surf.gii',S_id,hem{h},surf));
                 R{idx}.pial     = fullfile(surfDir,sprintf('%s.%s.pial.%sk.surf.gii',S_id,hem{h},surf));
                 R{idx}.flat     = surface;
-                R{idx}.linedef  = [5,0,1];                             % take 5 steps along node between white (0) and pial (1) surfaces
+                R{idx}.linedef  = [5,0,1];  % take 5 steps along node between white (0) and pial (1) surfaces
                 R{idx}.image    = file;
                 R{idx}.name     = [subj_id '_' ROI_name{r+1} '_' hem{h}];
                 R{idx}.location = find(P==r);
             end
         end
         R=region_calcregions(R);
-        savename=fullfile(baseDir,roiDir,sprintf('%s_Task_regions.glm_%d.mat',subj_id,glm));
-%       savename=fullfile(baseDir,roiDir,sprintf('%s_SSS_regions.mat',sprintf('S%02d',sn)));
-% region_savasimage
-        save(savename,'R');
+        outputDir = fullfile(baseDir,roiDir,sprintf('glm%d',glm),subj_id);
+        fname=fullfile(outputDir,sprintf('%s.Task_regions.glm%d.mat',subj_id,glm));
+        %fname=fullfile(baseDir,roiDir,sprintf('%s_SSS_regions.mat',sprintf('S%02d',sn)));
+
+        save(fname,'R','-v7.3');
         
         fprintf('\nROIs have been defined for %s \n',subj_id);
-        clear R
         % end  
+
+    case 'ROI:deform'
+        LR = 'L';
+        vararginoptions(varargin,{'sn','glm','LR'});
+        [subj_id, S_id] = get_id(sn);
+
+        fprintf('%s...\n',subj_id);
+        switch(LR)
+            case 'L'
+                hemis = 1;
+            case 'R'
+                hemis = 2;
+        end
+        % workDir = fullfile(baseDir,roiDir);
+        % fname = fullfile(workDir,sprintf('%s_Task_regions.glm_%d.mat',subj_id,glm));
+        workDir = fullfile(baseDir,roiDir,sprintf('glm%d',glm),subj_id);
+        fname = fullfile(workDir,sprintf('%s.Task_regions.glm%d.mat',subj_id,glm));
+        R = load(fname); % load the variable R
+        R = R.R;
+
+        anatDir = fullfile(baseDir,anatomicalDir,subj_id);
+        deffile = fullfile(anatDir,sprintf('iy_%s_anatomical.nii',subj_id));
+        R1 = region_deformation(R, deffile,'mask', R{1}.image);
+        % fname = fullfile(workDir,sprintf('%s.Task_regions.glm%d.mat',subj_id,glm));
+        % save(fname,'R1','-v7.3');
+
+        VolFile = fullfile(anatDir,sprintf('%s_anatomical.nii',subj_id));
+        cd(workDir);
+        for i = 1:length(R1)
+            region_saveasimg(R1{i}, VolFile);
+        end
 
     case 'ROI:make_cifti'
         TR = 1;
@@ -370,7 +404,7 @@ end
 
 
 function [subj_id, S_id] = get_id(sn)
-    pinfo = dload('D:/mobaxterm/sungbeenpark/github/diedrichsenlab/SeqSpatialSupp_fMRI/participants.tsv');
+    pinfo = dload('D:/mobaxterm/sungbeenpark/github/SeqSpatialSupp_fMRI/participants.tsv');
     subj_id = char(pinfo.subj_id(pinfo.sn==sn));
     S_id = strrep(subj_id,'R','S');
 
