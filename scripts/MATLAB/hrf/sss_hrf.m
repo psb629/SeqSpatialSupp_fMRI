@@ -22,7 +22,6 @@ wbDir           = 'surfaceWB';
 suitDir         = 'suit';
 regDir          = 'RegionOfInterest';
 roiDir          = 'ROI';
-glmDir          = 'glm_%d';
 
 dir_git = 'D:/mobaxterm/sungbeenpark/github';
 if exist(dir_git, 'dir') && ~contains(path, dir_git)
@@ -36,110 +35,131 @@ hem = {'L', 'R'};
 
 %% MAIN OPERATION 
 switch(what)
-    case 'ROI:findall' % use this... %rdm, glm3
-        % ROI 11개를 모아놓은 ROI.L.SSS.label.gii 파일 만들기
-        h=1;
-        surf='32';
-        
-        % 
-        ROI{1,1}={'L_SCEF_ROI','L_6ma_ROI','L_6mp_ROI'}; % SMA
-        ROI{1,2}={'L_6v_ROI','L_PEF_ROI','L_55b_ROI'}; % PMv
-        ROI{1,3}={'L_6a_ROI','L_6d_ROI','L_FEF_ROI'}; % PMd
-        % I took M1 and S1 from the one that we have already
-        ROI{1,6}={'L_AIP_ROI','L_7PC_ROI','L_LIPv_ROI','L_LIPd_ROI'}; % SPLa
-        ROI{1,7}={'L_MIP_ROI','L_VIP_ROI','L_7PL_ROI'}; % SPLp
-        ROI{1,8}={'L_IPS1_ROI','L_V3A_ROI','L_V3B_ROI','L_V7_ROI','L_V6A_ROI'}; % DSVC ,'L_V6_ROI'
-        ROI{1,9}={'L_LO1_ROI','L_LO2_ROI','L_LO3_ROI','L_V3CD_ROI','L_V4t_ROI','L_FST_ROI','L_MT_ROI','L_MST_ROI','L_PH_ROI'}; % MT+
-        ROI{1,10}={'L_FFC_ROI','L_VVC_ROI','L_V8_ROI','L_VMV1_ROI','L_VMV2_ROI','L_VMV3_ROI','L_PIT_ROI'}; % VSVC
-        ROI{1,11}={'L_RI_ROI','L_MBelt_ROI','L_PBelt_ROI','L_A1_ROI','L_LBelt_ROI'}; % EAC
-        % ROI{1,12}={}; % V1
-        
-        ROI_name={'','SMA','PMv','PMd','M1','S1','SPLa','SPLp','DSVC','MT+','VSVC','EAC'};  % important! add the first ''
-                
-        pathtosurf=fullfile(atlasDir,sprintf('FS_LR_%sk',surf));
-        P_glasser=gifti(fullfile(pathtosurf,sprintf('Glasser_2016.%sk.%s.label.gii',surf,hem{h})));
-        P_brodmann=gifti(fullfile(pathtosurf,sprintf('ROI.%sk.%s.label.gii',surf,hem{h})));
-        P=zeros(size(P_glasser.cdata));
-        
-        for i=1:length(ROI_name)-1
-            if (i==4||i==5) % M1 and S1
-                if i==4
-                    P(ismember(P_brodmann.cdata,2),1)=i;
-                else
-                    P(ismember(P_brodmann.cdata,1),1)=i;
-                end
-            else
-                roi_num=[];
-                for j=1:length(ROI{1,i})
-                    roi_num=cat(2,roi_num,P_glasser.labels.key(strcmp(P_glasser.labels.name,ROI{1,i}{j})));
-                end
-                P(ismember(P_glasser.cdata,roi_num),1)=i;
-            end
-        end
-        
-        % create a label
-        G=surf_makeLabelGifti(P,'labelNames',ROI_name);
-        fname=fullfile(atlasDir,sprintf('fs_LR_32k/ROI.%s.%s.label.gii',hem{h},'SSS'));
-        if ~exist(fname,'file')
-            save(G,fname,'-v7.3');
-        end
-        fprintf(1,'Done.\n');
-        
-        varargout={P,ROI_name};
+    % case 'ROI:findall' % use this... %rdm, glm3
+    %     % ROI 11개를 모아놓은 ROI.L.SSS.label.gii 파일 만들기
+    %     h=1;
+    %     surf='32';
+    % 
+    %     % 
+    %     ROI{1,1}={'L_SCEF_ROI','L_6ma_ROI','L_6mp_ROI'}; % SMA
+    %     ROI{1,2}={'L_6v_ROI','L_PEF_ROI','L_55b_ROI'}; % PMv
+    %     ROI{1,3}={'L_6a_ROI','L_6d_ROI','L_FEF_ROI'}; % PMd
+    %     % I took M1 and S1 from the one that we have already
+    %     ROI{1,6}={'L_AIP_ROI','L_7PC_ROI','L_LIPv_ROI','L_LIPd_ROI'}; % SPLa
+    %     ROI{1,7}={'L_MIP_ROI','L_VIP_ROI','L_7PL_ROI'}; % SPLp
+    %     ROI{1,8}={'L_IPS1_ROI','L_V3A_ROI','L_V3B_ROI','L_V7_ROI','L_V6A_ROI'}; % DSVC ,'L_V6_ROI'
+    %     ROI{1,9}={'L_LO1_ROI','L_LO2_ROI','L_LO3_ROI','L_V3CD_ROI','L_V4t_ROI','L_FST_ROI','L_MT_ROI','L_MST_ROI','L_PH_ROI'}; % MT+
+    %     ROI{1,10}={'L_FFC_ROI','L_VVC_ROI','L_V8_ROI','L_VMV1_ROI','L_VMV2_ROI','L_VMV3_ROI','L_PIT_ROI'}; % VSVC
+    %     ROI{1,11}={'L_RI_ROI','L_MBelt_ROI','L_PBelt_ROI','L_A1_ROI','L_LBelt_ROI'}; % EAC
+    %     % ROI{1,12}={}; % V1
+    % 
+    %     ROI_name={'','SMA','PMv','PMd','M1','S1','SPLa','SPLp','DSVC','MT+','VSVC','EAC'};  % important! add the first ''
+    % 
+    %     pathtosurf=fullfile(atlasDir,sprintf('FS_LR_%sk',surf));
+    %     P_glasser=gifti(fullfile(pathtosurf,sprintf('Glasser_2016.%sk.%s.label.gii',surf,hem{h})));
+    %     P_brodmann=gifti(fullfile(pathtosurf,sprintf('ROI.%sk.%s.label.gii',surf,hem{h})));
+    %     P=zeros(size(P_glasser.cdata));
+    % 
+    %     for i=1:length(ROI_name)-1
+    %         if (i==4||i==5) % M1 and S1
+    %             if i==4
+    %                 P(ismember(P_brodmann.cdata,2),1)=i;
+    %             else
+    %                 P(ismember(P_brodmann.cdata,1),1)=i;
+    %             end
+    %         else
+    %             roi_num=[];
+    %             for j=1:length(ROI{1,i})
+    %                 roi_num=cat(2,roi_num,P_glasser.labels.key(strcmp(P_glasser.labels.name,ROI{1,i}{j})));
+    %             end
+    %             P(ismember(P_glasser.cdata,roi_num),1)=i;
+    %         end
+    %     end
+    % 
+    %     % create a label
+    %     G=surf_makeLabelGifti(P,'labelNames',ROI_name);
+    %     fname=fullfile(atlasDir,sprintf('fs_LR_32k/ROI.%s.%s.label.gii',hem{h},'SSS'));
+    %     if ~exist(fname,'file')
+    %         save(G,fname,'-v7.3');
+    %     end
+    %     fprintf(1,'Done.\n');
+    % 
+    %     varargout={P,ROI_name};
 
     case 'ROI:calc_region' % use this... %rdm, glm3
         % ROI template를 피험자의 공간(2D surface)에 매핑
-        hemis=1;
-        % sn=subj_vec;
-        glm=0;  % change this glm=1 for S01-S06
-        surf='32';
-        [P,ROI_name]=sss_hrf('ROI:findall');
+        hemis = [1, 2];
+        atlas = 'ROI';
+        % [P,ROI_name]=sss_hrf('ROI:findall');
+        % n_roi=length(ROI_name)-1;
         % 왜 그룹 마스크? 개인 마스크가 아니고? -> # of voxels 수를 맞추기 위해?
         %PP = load('/srv/diedrichsen/data/SeqSpatialSupp_fMRI/surfaceWB/group32k/fmask_data.mat');
         %P = (PP.mask'~=0).*P;
-        vararginoptions(varargin,{'sn','glm'});
-        n_roi=length(ROI_name)-1;
-        
+        vararginoptions(varargin,{'sn','glm','atlas'});
+
+        %% load Atlas
+        atlasDir = 'F:/Atlas/fs_LR_32';
+
+        atlasH = {sprintf('%s.32k.L.label.gii', atlas), sprintf('%s.32k.R.label.gii', atlas)};
+        atlas_gii = {gifti(fullfile(atlasDir, atlasH{1})), gifti(fullfile(atlasDir, atlasH{2}))};
+
         % loop over subjects
         [subj_id, S_id] = get_id(sn);
 
         fprintf('%s...\n',subj_id);
-        R=cell(1,1);
-        surfDir=fullfile(baseDir,wbDir,S_id);
         
-        idx=0;
-        
+        %% load mask.nii from GLM result
+        Vol = fullfile(baseDir,sprintf('glm_%d',glm),subj_id,'mask.nii');
+
+        surfDir = fullfile(baseDir,wbDir,S_id);
+        Hem = {'L','R'};
+        R = {};
+        idx = 1;
         for h=hemis
-            file=fullfile(baseDir,sprintf(glmDir,glm),subj_id,'mask.nii');
-            % pathtosurf=fullfile(atlasDir,sprintf('fs_LR_%sk',surf));
-            % surface=fullfile(pathtosurf,sprintf('fs_LR.%sk.%s.flat.surf.gii',surf,hem{h}));
-            surface = fullfile('F:/Atlas/fs_LR_32/fs_LR.32k.L.flat.surf.gii');
-            for r=1:n_roi
-                idx=idx+1;
-                R{idx}.type     = 'surf_nodes';
-                R{idx}.white    = fullfile(surfDir,sprintf('%s.%s.white.%sk.surf.gii',S_id,hem{h},surf));
-                R{idx}.pial     = fullfile(surfDir,sprintf('%s.%s.pial.%sk.surf.gii',S_id,hem{h},surf));
-                R{idx}.flat     = surface;
+            for reg = 2:length(atlas_gii{h}.labels.name)
+                % pathtosurf=fullfile(atlasDir,sprintf('fs_LR_%sk',surf));
+                % surface=fullfile(pathtosurf,sprintf('fs_LR.%sk.%s.flat.surf.gii',surf,hem{h}));
+                % surface = fullfile('F:/Atlas/fs_LR_32/fs_LR.32k.L.flat.surf.gii');
+                R{idx}.type     = 'surf_nodes_wb';
+                R{idx}.white    = fullfile(surfDir,sprintf('%s.%s.white.32k.surf.gii',S_id,hem{h})); % T1 space
+                R{idx}.pial     = fullfile(surfDir,sprintf('%s.%s.pial.32k.surf.gii',S_id,hem{h}));  % T1 space
+                % R{idx}.flat     = surface;
                 R{idx}.linedef  = [5,0,1];  % take 5 steps along node between white (0) and pial (1) surfaces
-                R{idx}.image    = file;
-                R{idx}.name     = [subj_id '_' ROI_name{r+1} '_' hem{h}];
-                R{idx}.location = find(P==r);
+                R{idx}.image    = Vol;     % functional space
+                R{idx}.name     = atlas_gii{h}.labels.name{reg};
+                R{idx}.hem      = Hem{h};
+                key             = atlas_gii{h}.labels.key(reg);
+                R{idx}.location = find(atlas_gii{h}.cdata==key);
+                idx = idx+1;
             end
+        
+        overlap = [1 2; 1 3; 1 4; 3 4; 7 8; 1 7];
         end
-        R=region_calcregions(R);
+        R = region_calcregions(R, 'exclude', [overlap; overlap+8], 'exclude_thres', .8);
+
         outputDir = fullfile(baseDir,roiDir,sprintf('glm%d',glm),subj_id);
         fname=fullfile(outputDir,sprintf('%s.Task_regions.glm%d.mat',subj_id,glm));
         %fname=fullfile(baseDir,roiDir,sprintf('%s_SSS_regions.mat',sprintf('S%02d',sn)));
 
+        %% save R
         save(fname,'R','-v7.3');
         
+        %% save R as an image file (Is it same as the deformation?)
+        for r = 1:length(R)
+            img = region_saveasimg(R{r}, Vol, 'name', ...
+                fullfile( ...
+                outputDir, sprintf('%s.%s.glm%d.%s.%s.nii', atlas, R{r}.hem, glm, subj_id, R{r}.name) ...
+                ) ...
+                );
+        end
+
         fprintf('\nROIs have been defined for %s \n',subj_id);
         % end  
 
     case 'ROI:deform'
         % 피험자의 공간에 매핑된 ROI.gii(surface)들을 다시 피험자의 Volume에 매핑
         LR = 'L';
-        DoSave = false;
+        DoSave = true;
         vararginoptions(varargin,{'sn','glm','LR','DoSave'});
         DoSave = logical(DoSave);
         [subj_id, S_id] = get_id(sn);
@@ -160,11 +180,12 @@ switch(what)
 
         anatDir = fullfile(baseDir,anatomicalDir,subj_id);
         deffile = fullfile(anatDir,sprintf('iy_%s_anatomical.nii',subj_id));
-        R1 = region_deformation(R, deffile,'mask', R{1}.image); fprintf('done!\n');
+        R1 = region_deformation(R, deffile, 'mask', R{1}.image); fprintf('done!\n');
         % fname = fullfile(workDir,sprintf('%s.Task_regions.glm%d.mat',subj_id,glm));
         % save(fname,'R1','-v7.3');
 
-        VolFile = fullfile(anatDir,sprintf('%s_anatomical.nii',subj_id));
+        % VolFile = fullfile(anatDir,sprintf('%s_anatomical.nii',subj_id));
+        VolFile = fullfile(baseDir,sprintf('glm_%d',glm),subj_id,'mask.nii');
         Vol = spm_vol(VolFile);
         varargout={R1, Vol};
 
@@ -182,23 +203,27 @@ switch(what)
         DoSave = true;
         vararginoptions(varargin,{'sn','glm','LR','DoSave'});
         DoSave = logical(DoSave);
-        % vararginoptions(varargin,{'fname_load','fname_save','fname_vol','data'});
-        % R = load(fname_load);
-        % V = spm_vol(fname_vol);
-        % cii = region_make_cifti(R,V,'data',data,'dtype',dtype,'dnames',dnames,'TR',TR);
+
         [subj_id, S_id] = get_id(sn);
-        [R, V] = sss_hrf('ROI:deform','sn',sn,'glm',glm,'LR',LR);
-        SPM = load(fullfile(baseDir,sprintf(glmDir,glm),subj_id,'SPM.mat'));
+
+        workDir = fullfile(baseDir,roiDir,sprintf('glm%d',glm),subj_id);
+        fname=fullfile(workDir,sprintf('%s.Task_regions.glm%d.mat',subj_id,glm));
+        % [R, V] = sss_hrf('ROI:deform','sn',sn,'glm',glm,'LR',LR);
+        R = load(fname); R = R.R;
+
+        glmDir = fullfile(baseDir,sprintf('glm_%d',glm),subj_id);
+        VolFile = fullfile(glmDir,'mask.nii');
+        V = spm_vol(VolFile);
+        SPM = load(fullfile(glmDir,'SPM.mat'));
         SPM = SPM.SPM;
         
         fprintf('Extration Y_raw for each ROI...');
         D = region_getdata(SPM.xY.VY,R);
         
-        workDir = fullfile(baseDir,roiDir,sprintf('glm%d',glm),subj_id);
         % cii = {};
         for i = 1:length(D)
             name = R{1,i}.name;
-            fname = fullfile(workDir,sprintf('cifti.%s.glm%d.y_raw.nii',name,glm));
+            fname = fullfile(workDir,sprintf('cifti.L.glm%d.%s.%s.y_raw.nii',glm,subj_id,name));
             cii = region_make_cifti(R{i},V,'data',D{i}','dtype','series','TR',1);
             if DoSave
                 cifti_write(cii, fname);
@@ -224,7 +249,7 @@ switch(what)
         % [R, V] = sss_hrf('ROI:deform','sn',sn,'glm',glm,'LR',LR);
 
         %% load SPM.mat (GLM information)
-        SPM = load(fullfile(baseDir,sprintf(glmDir,glm),subj_id,'SPM.mat'));
+        SPM = load(fullfile(baseDir,sprintf('glm_%d',glm),subj_id,'SPM.mat'));
         SPM = SPM.SPM;
         % Find onsets for all events
         [D, start_sess] = spmj_get_ons_struct(SPM);
@@ -259,14 +284,13 @@ switch(what)
         workDir = fullfile(baseDir,roiDir,sprintf('glm%d',glm),subj_id);
         
         %% load y_raw
-        name = sprintf('%s_%s_%s',subj_id,roi,LR);
-        fname = fullfile(workDir,sprintf('cifti.%s.glm%d.y_raw.nii',name,glm));
+        fname = fullfile(workDir,sprintf('cifti.L.glm%d.%s.%s.y_raw.nii',glm,subj_id,roi));
         cii = cifti_read(fname);
         Yraw = double(cii.cdata(:,:)');
         clear cii
 
         %% load SPM.mat (GLM information)
-        SPM = load(fullfile(baseDir,sprintf(glmDir,glm),subj_id,'SPM.mat'));
+        SPM = load(fullfile(baseDir,sprintf('glm_%d',glm),subj_id,'SPM.mat'));
         SPM = SPM.SPM;
 
         %% optimization
@@ -287,15 +311,18 @@ switch(what)
         workDir = fullfile(baseDir,roiDir,sprintf('glm%d',glm),subj_id);
         
         %% load y_raw
-        name = sprintf('%s_%s_%s',subj_id,roi,LR);
-        fname = fullfile(workDir,sprintf('cifti.%s.glm%d.y_raw.nii',name,glm));
+        fname = fullfile(workDir,sprintf('cifti.L.glm%d.%s.%s.y_raw.nii',glm,subj_id,roi));
         cii = cifti_read(fname);
         Yraw = double(cii.cdata(:,:)');
         clear cii
 
         %% load SPM.mat (GLM information)
-        SPM = load(fullfile(baseDir,sprintf(glmDir,glm),subj_id,'SPM.mat'));
+        SPM = load(fullfile(baseDir,sprintf('glm_%d',glm),subj_id,'SPM.mat'));
         SPM = SPM.SPM;
+
+        %% HRF parameter
+        % hrf_params = [6 16 1 1 6 0 32]; % default
+        hrf_params = [5 14 1 1 6 0 32];
 
         % Get the hemodynamic response in micro-time resolution
         SPM.xBF.UNITS    = 'secs'; % units of the hrf
@@ -305,7 +332,7 @@ switch(what)
         SPM.xBF.name     = 'fitted_hrf';
         SPM.xBF.order    = 1;
         SPM.xBF.Volterra = 1;  % volterra expansion order?
-        SPM.xBF.bf = spm_hrf(SPM.xBF.dt,[6 16 1 1 6 0 32]);
+        SPM.xBF.bf = spm_hrf(SPM.xBF.dt,hrf_params);
         % p(1) - delay of response (relative to onset)          6
         % p(2) - delay of undershoot (relative to onset)       16
         % p(3) - dispersion of response                         1
@@ -321,6 +348,7 @@ switch(what)
         % Restimate the betas and get predicted and residual response
         [beta, Yhat, Yres] = spmj_glm_fit(SPM,Yraw);
         
+        figure;
         % Diagnostic plots 
         subplot(2,2,1);
         t=[SPM.xBF.dt*SPM.xBF.T0:SPM.xBF.dt:SPM.xBF.length]; 
@@ -335,6 +363,7 @@ switch(what)
         title(sprintf('Run %d - overall response',run));
         
         subplot(2,2,3);
+        % 각 ROI별 복셀 평균을 하여 Y들을 구함
         Yhat_run = mean(Yhat(SPM.Sess(run).row,:),2);
         Yres_run = mean(Yres(SPM.Sess(run).row,:),2);
         Yadj_run = Yres_run+Yres_run; 
@@ -342,18 +371,19 @@ switch(what)
         plot(t,Yhat_run,'b',t,Yadj_run,'b:'); 
         title(sprintf('Run %d - overall response',run));
         
-        % Get onset structure, cut-out the trials of choice, and plot evoked
-        % response
+        % Get onset structure, cut-out the trials of choice, and plot evoked response
         subplot(2,2,4);
         D = spmj_get_ons_struct(SPM);
         Yadj = Yhat+Yres; 
         for i=1:size(D.block,1)
+            % 각 ROI별 복셀 평균을 하여 Y들을 onset time (TR) 기준 [pre,post] 범위로 절단.
+            % 그후 각 onset 별로 (행으로) 이어 붙임.
             D.y_adj(i,:)=cut(mean(Yadj,2),pre,round(D.ons(i))-1,post,'padding','nan')';
             D.y_hat(i,:)=cut(mean(Yhat,2),pre,round(D.ons(i))-1,post,'padding','nan')';
             D.y_res(i,:)=cut(mean(Yres,2),pre,round(D.ons(i))-1,post,'padding','nan')';
         end
-                        
-        T = getrow(D,mod(D.num,2)==1); % Get the first onset for each double 
+        
+        T = getrow(D,mod(D.num,2)==1); % Get the first onset for each double (홀수인 행 추출) 
         traceplot([-pre:post],T.y_adj,'errorfcn','stderr'); % ,
         hold on;
         traceplot([-pre:post],T.y_hat,'linestyle','--',...
@@ -364,6 +394,7 @@ switch(what)
         hold off;
         xlabel('TR');
         ylabel('activation');
+        title(mat2str(hrf_params));
 
 %     case 'HRF:ROI_hrf_get'  % Extract raw and estimated time series from ROIs
 %         sn = [];
