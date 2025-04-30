@@ -23,7 +23,7 @@ suitDir         = 'suit';
 regDir          = 'RegionOfInterest';
 roiDir          = 'ROI';
 
-dir_git = 'D:/mobaxterm/sungbeenpark/github';
+dir_git = '\\wsl.localhost/ubuntu-22.04/home/sungbeenpark/github';
 if exist(dir_git, 'dir') && ~contains(path, dir_git)
     addpath(genpath(dir_git));
     addpath(genpath(fullfile('cifti_write-matlab/private')));
@@ -207,7 +207,7 @@ switch(what)
         [subj_id, S_id] = get_id(sn);
 
         workDir = fullfile(baseDir,roiDir,sprintf('glm%d',glm),subj_id);
-        fname=fullfile(workDir,sprintf('%s.Task_regions.glm%d.mat',subj_id,glm));
+        fname = fullfile(workDir,sprintf('%s.Task_regions.glm%d.mat',subj_id,glm));
         % [R, V] = sss_hrf('ROI:deform','sn',sn,'glm',glm,'LR',LR);
         R = load(fname); R = R.R;
 
@@ -223,8 +223,23 @@ switch(what)
         % cii = {};
         for i = 1:length(D)
             name = R{1,i}.name;
-            fname = fullfile(workDir,sprintf('cifti.L.glm%d.%s.%s.y_raw.nii',glm,subj_id,name));
+            %% y_raw
             cii = region_make_cifti(R{i},V,'data',D{i}','dtype','series','TR',1);
+            fname = fullfile(workDir,sprintf('cifti.L.glm%d.%s.%s.y_raw.nii',glm,subj_id,name));
+            if DoSave
+                cifti_write(cii, fname);
+            end
+            %% others
+            [beta, Yhat, Yres] = spmj_glm_fit(SPM,D{i});
+            % y_hat
+            cii = region_make_cifti(R{i},V,'data',Yhat','dtype','series','TR',1);
+            fname = fullfile(workDir,sprintf('cifti.L.glm%d.%s.%s.y_hat.nii',glm,subj_id,name));
+            if DoSave
+                cifti_write(cii, fname);
+            end
+            % y_res
+            cii = region_make_cifti(R{i},V,'data',Yres','dtype','series','TR',1);
+            fname = fullfile(workDir,sprintf('cifti.L.glm%d.%s.%s.y_res.nii',glm,subj_id,name));
             if DoSave
                 cifti_write(cii, fname);
             end
@@ -301,11 +316,13 @@ switch(what)
         varargout = {SPM,Yhat,Yres,p_opt};
 
     case 'HRF:example'
+        %% initialize
         LR = 'L';
         pre = 10;
         post = 20;
         run = 1;
-        vararginoptions(varargin,{'sn','glm','roi','LR','run','pre','post'});
+        hrf_params = [6 16 1 1 6 0 32]; % default
+        vararginoptions(varargin,{'sn','glm','roi','LR','run','pre','post','hrf_params'});
 
         [subj_id, S_id] = get_id(sn);
         workDir = fullfile(baseDir,roiDir,sprintf('glm%d',glm),subj_id);
@@ -319,10 +336,6 @@ switch(what)
         %% load SPM.mat (GLM information)
         SPM = load(fullfile(baseDir,sprintf('glm_%d',glm),subj_id,'SPM.mat'));
         SPM = SPM.SPM;
-
-        %% HRF parameter
-        % hrf_params = [6 16 1 1 6 0 32]; % default
-        hrf_params = [5 14 1 1 6 0 32];
 
         % Get the hemodynamic response in micro-time resolution
         SPM.xBF.UNITS    = 'secs'; % units of the hrf
@@ -349,6 +362,7 @@ switch(what)
         [beta, Yhat, Yres] = spmj_glm_fit(SPM,Yraw);
         
         figure;
+        sgtitle(sprintf('%s (%s)',subj_id,roi));
         % Diagnostic plots 
         subplot(2,2,1);
         t=[SPM.xBF.dt*SPM.xBF.T0:SPM.xBF.dt:SPM.xBF.length]; 
@@ -356,7 +370,7 @@ switch(what)
         drawline([0],'dir','horz','linestyle','-');
         title('Basis Function(s)'); 
         
-        % First run, convolved design matrix, sum of regressors of interest
+        % i-th run, convolved design matrix, sum of regressors of interest
         subplot(2,2,2);
         X=SPM.xX.X(SPM.Sess(run).row,SPM.Sess(run).col);
         plot(sum(X,2));
@@ -374,15 +388,14 @@ switch(what)
         % Get onset structure, cut-out the trials of choice, and plot evoked response
         subplot(2,2,4);
         D = spmj_get_ons_struct(SPM);
-        Yadj = Yhat+Yres; 
+        Yadj = Yhat+Yres;
         for i=1:size(D.block,1)
             % 각 ROI별 복셀 평균을 하여 Y들을 onset time (TR) 기준 [pre,post] 범위로 절단.
-            % 그후 각 onset 별로 (행으로) 이어 붙임.
+            % 그후 각 Block 별(열) 이어 붙임.
             D.y_adj(i,:)=cut(mean(Yadj,2),pre,round(D.ons(i))-1,post,'padding','nan')';
             D.y_hat(i,:)=cut(mean(Yhat,2),pre,round(D.ons(i))-1,post,'padding','nan')';
             D.y_res(i,:)=cut(mean(Yres,2),pre,round(D.ons(i))-1,post,'padding','nan')';
         end
-        
         T = getrow(D,mod(D.num,2)==1); % Get the first onset for each double (홀수인 행 추출) 
         traceplot([-pre:post],T.y_adj,'errorfcn','stderr'); % ,
         hold on;
@@ -394,8 +407,12 @@ switch(what)
         hold off;
         xlabel('TR');
         ylabel('activation');
-        title(mat2str(hrf_params));
-
+        A = mean(D.y_adj,2);
+        B = mean(D.y_hat,2);
+        coef = corrcoef(A(~isnan(A)),B(~isnan(B)));
+        D.y_res(isnan(D.y_res)) = 0;
+        epsq = trace(D.y_res'*D.y_res);
+        title(sprintf('%s\nr=%.3f, |e|^{2}=%g',mat2str(hrf_params),coef(1,2),epsq));
 %     case 'HRF:ROI_hrf_get'  % Extract raw and estimated time series from ROIs
 %         sn = [];
 %         ROI = 'all';
@@ -622,7 +639,7 @@ end
 
 
 function [subj_id, S_id] = get_id(sn)
-    pinfo = dload('D:/mobaxterm/sungbeenpark/github/SeqSpatialSupp_fMRI/participants.tsv');
+    pinfo = dload('\\wsl.localhost/ubuntu-22.04/home/sungbeenpark/github/SeqSpatialSupp_fMRI/participants.tsv');
     subj_id = char(pinfo.subj_id(pinfo.sn==sn));
     S_id = strrep(subj_id,'R','S');
 
