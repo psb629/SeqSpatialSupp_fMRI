@@ -1,2 +1,12 @@
+numpy
+matplotlib
+pandas
+tqdm
+seaborn
 nilearn
-
+plotly
+nibabel
+nipype
+h5py
+ipykernel
+jupyter
