@@ -1,185 +1,143 @@
 function varargout = sss_GLM(what,varargin)
-%%
-% After mounting the diedrichsen datashare on a mac computer.
 
-if ismac
-    workdir = '/Volumes/Diedrichsen_data$/data/SeqSpatialSupp_fMRI';
-    atlasDir = '/Volumes/Diedrichsen_data$/data/Atlas_templates';
-    dir_git = '/Users/sungbeenpark/github';
-    % dir_tool = '/Users/sungbeenpark/Documents/MATLAB';
-% After mounting the diedrichsen datashare on the CBS server.
-elseif isunix
-    workdir = '/srv/diedrichsen/data/SeqSpatialSupp_fMRI';
-    atlasDir = '/srv/diedrichsen/data/Atlas_templates';
-    standardmeshDir = '/home/ROBARTS/skim2764/imaging_tools/surfAnalysis/standard_mesh';
-elseif ispc
-    workdir = 'F:/SeqSpatialSupp_fMRI';
-    atlasDir = 'D:/mobaxterm/sungbeenpark/github/diedrichsenlab/atlas';
-    standardmeshDir = 'D:/mobaxterm/sungbeenpark/github/surfAnalysis/standard_mesh';
-    dir_git = 'D:/mobaxterm/sungbeenpark/github';
-    % dir_tool = dir_git;
-    
-else
-    fprintf('Workdir not found. Mount or connect to server and try again.');
+if ispc
+    cd '\\wsl.localhost/ubuntu-22.04/home/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
+    sss_init;
 end
 
-baseDir         = (sprintf('%s/',workdir));     % Base directory of the project
-BIDSDir         = 'BIDS';                       % Raw data post AutoBids conversion
-behavDir        = 'behavDir';           % Timing data from the scanner
-imagingRawDir   = 'imaging_data_raw';           % Temporary directory for raw functional data
-imagingDir      = 'imaging_data';               % Preprocesses functional data
-anatomicalDir   = 'anatomicals';                % Preprocessed anatomicalcentr data (LPI + center AC + segemnt)
-fmapDir         = 'fieldmaps';                  % Fieldmap dir after moving from BIDS and SPM make fieldmap
-suitDir         = 'suit';
-regDir          = 'RegionOfInterest';
-freesurferDir   = 'freesurf';
-wbDir = 'surfaceWB';  %% standard surface?
-glmDir = 'glm_%d';
-roiDir = 'ROI';
+%% Scanner
+TR = 1;
+numDummys  = 8;  % dummy images at the start of each run (these are discarded)
 
-addpath(genpath(dir_git));
-% addpath(genpath(dir_tool));
+%% Adjust this for experiment
+nTRs = [410*ones(1,8)];
+% nTRs = [410*ones(1,10) 401 406 410 404 410 410 385]; % For S11
+% nTRs = [410*ones(1,16) 385]; % for S09
 
-%% subject info
+%% HRF parameters
+hrf_params_default = [6 16 1 1 6 0 32];
+hrf_params = [];
+hrf_cutoff = 128;
 
-% ROI
+map = 'beta';
+%% argument inputs
+sn = [];
+glm = [];
+vararginoptions(varargin,{'sn','glm','nTRs','hrf_params','map'});
+hrf_params = [hrf_params hrf_params_default(length(hrf_params)+1:end)];
+
+if isempty(sn)
+    error('GLM:design -> ''sn'' must be passed to this function.')
+end
+[subj_id, S_id] = get_id(fullfile(dir_git,'SeqSpatialSupp_fMRI/participants.tsv'), sn);
+
+if isempty(glm)
+    error('GLM:design -> ''glm'' must be passed to this function.')
+end
+glmDir = sprintf('glm_%d',glm);
+
+%% ROI
 hemi = {'lh','rh'}; % left & right hemi folder names/prefixes
 hem = {'L', 'R'}; % hemisphere: 1=LH 2=RH
 hname = {'CortexLeft', 'CortexRight'}; % 'CortexLeft', 'CortexRight', 'Cerebellum'
 
-% Scanner
-TR = 1000;
-numDummys  = 8;  % dummy images at the start of each run (these are discarded)
-numTRs = 410; %% Adjust this for experiment
-endTR = 410; % S.Park: prevent the error in sss_imana('FUNC:realign_unwarp','sn',s,'rtm',0)
-
-% nTRs = [410*ones(1,10) 401 406 410 404 410 410 385]; % For S11
-% nTRs = [410*ones(1,16) 385]; % for S09
-
-fsl=16;
-fs=13;
-fontname='Arial';
+%% prefix of output files
+prefix = 'u';
 
 %% MAIN OPERATION 
 switch(what)
+    case 'GLM:all'
+        spm_get_defaults('cmdline', true);  % Suppress GUI prompts, no request for overwirte
+
+        % Check for and delete existing SPM.mat file
+        spm_file = fullfile(baseDir,glmDir,subj_id,'SPM.mat');
+        if exist(spm_file, 'file')
+            delete(spm_file);
+        end
+
+        sss_GLM('GLM:design','sn',sn,'glm',glm,'nTRs',nTRs,'hrf_params',hrf_params);
+        sss_GLM('GLM:estimate','sn',sn,'glm',glm);
+        sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map',map);
+        
     case 'GLM:design'
         %% dependency:
-            % https://github.com/spm/spm.git
-            % https://github.com/jdiedrichsen/rwls.git
-        % handling input args:
-        sn = [];
-        prefix = 'u';
-        % TODOfreesurferDir
-        hrf_params = [6 16];
-        hrf_cutoff = 128;
+        % https://github.com/spm/spm.git
+        % https://github.com/jdiedrichsen/rwls.git
+
+        %% Import globals from spm_defaults 
+        global defaults; 
+        if (isempty(defaults))
+            spm_defaults;
+        end
+        %% cvi type
         % cvi_type = 'wls';
         cvi_type = 'fast';
-        % nTR = 410; %% modify when necessary
-        vararginoptions(varargin,{'sn','glm','nTR','hrf_params'});   
-        % def_params = spm_get_defaults('stats.fmri.hrf');
-        % def_params([1:2]) = hrf_params; hrf_params=def_params;
-        % run_list = str2double(split(pinfo.runlist(pinfo.sn==sn),'.'));
-        run_list = [1:8];
-        % Save the aux. information file (SPM_info.mat).
-        % This file contains user-friendly information about the glm
-        % model, regressor types, condition names, etc.
-        T = struct();
-        % initialize 
-        J = struct();
-        % load preprocessed behavioral data
-        %if glm~=0
-        % R = construct_dsgmat(sn, glm); %% Important: index of R indicates a trial number
-        %end
+
+        %% 
+        list_run = 1:8;
+        
+        %% initiate J
+        J = [];
+        J.dir = {fullfile(baseDir,glmDir,subj_id)};
+        if (~exist(J.dir{1},'dir'))
+            mkdir(J.dir{1});
+        end
+        J.timing.units = 'secs'; % timing unit that all timing in model will be
+        J.timing.RT = 1; % TR (in seconds, as per 'J.timing.units')
+        % number of temporal bins in which the TR is divided,
+        % defines the discrtization of the HRF inside each TR
+        J.timing.fmri_t = 16;
+        % slice number that corresponds to that acquired halfway in
+        % each TR
+        J.timing.fmri_t0 = 1;
+
+        T = [];
+
         % R1 = construct_dsgmat(sprintf('S%02d',sn),glm);
         % R2 = construct_dsgmat(sprintf('R%02d',sn),glm);
         % R = combine_behavdata(R1,R2);
 
-        fname = fullfile(dir_git,'SeqSpatialSupp_fMRI/participants.tsv');
-        [subj_id, S_id] = get_id(fname, sn);
-        behav_data = fullfile(workdir,behavDir,sprintf('sub-%s/ssh__%s.dat',subj_id,subj_id));
+        %% behavioural data
+        behav_data = fullfile(baseDir,behavDir,sprintf('sub-%s/ssh__%s.dat',subj_id,subj_id));
         R = construct_dsgmat(behav_data,glm);
-        
-        J.dir = {fullfile(baseDir, sprintf(glmDir, glm), subj_id)};
-        J.timing.units = 'secs'; % timing unit that all timing in model will be
-        J.timing.RT = 1; % TR (in seconds, as per 'J.timing.units')
-        J.timing.fmri_t = 16;
-        J.timing.fmri_t0 = 1;
-        % make GLM dir
-        if (~exist(J.dir{1},'dir'))
-            mkdir(J.dir{1});
-        end
-        % loop through runs within the current sessions
-        % itaskUni = 0;
-        if glm==0  %% for 9th run, slow-event design
-           run_list = 17; % use run 17
-           % run_list = 9; % use run 9
-           % nTR = 385; % number of TRs for run 09
-           R.cond = ones(1,nTR);
-           
-        end
         n_cond = length(unique(R.cond));
-        if sn==9 % for S09
-            nTR = [410*ones(1,8) 385];
-        elseif sn==11 % for S11
-            nTR = [410*ones(1,8) 385];
-        elseif sn==25 % for R11
-            nTR = [410*ones(1,2) 401 406 410 404 410 410];
-        else
-            nTR = [410*ones(1,8)];
-        end
+
+        % % nTRs = [410*ones(1,10) 401 406 410 404 410 410 385]; % For S11
+        % % nTRs = [410*ones(1,16) 385]; % for S09
         
-        % if length(run_list)==9
-        %    nTR = [nTR 385];
+        % if sn==9 % for S09
+        %     nTR = [410*ones(1,8) 385];
+        % elseif sn==11 % for S11
+        %     nTR = [410*ones(1,8) 385];
+        % elseif sn==25 % for R11
+        %     nTR = [410*ones(1,2) 401 406 410 404 410 410];
         % end
-        for r=run_list
-            % get functional runs
-            for i=1:nTR(r)
-                N{i} = fullfile(baseDir,imagingDir,subj_id,[prefix sprintf('%s_run_%02d',subj_id,run_list(r)) '.nii,',num2str(i)]);
+
+        for r=list_run
+            % Setup scans for current session
+            N = {};
+            for i=1:nTRs(r)
+                N{i} = fullfile(baseDir,imagingDir,subj_id,[prefix sprintf('%s_run_%02d.nii,%d',subj_id,r,i)]);
             end                
             J.sess(r).scans= N;
-            if glm==0
-                cond_name = {'All trials'};  %% only for 9th run
-            elseif glm==1
-                for c=1:n_cond cond_name{c} = sprintf('Trial %d',c);end
-            elseif glm==2 
-                cond_name = {'MotorOnly-L','MotorOnly-S','CueOnly-L','CueOnly-S',...
-                            'BothRep-L','BothRep-S','NonRep-L','NonRep-S','Non-Interest'};
-            elseif glm==3
-                for c=1:n_cond cond_name{c} = sprintf('Trial-State %d',c);end;
-                cond_name{n_cond+1} = 'Non-Interest';
-            elseif glm==4
-                cond_name = {'Letter','Spatial','Non-Interest'};
+
+            % Setup names for conditions
+            switch(glm)
+                case 0
+                    cond_name = {'All trials'};  %% only for 9th run
+                case 1
+                    for c=1:n_cond; cond_name{c} = sprintf('Trial %d',c); end
+                case 2 
+                    cond_name = {'MotorOnly-L','MotorOnly-S','CueOnly-L','CueOnly-S',...
+                                'BothRep-L','BothRep-S','NonRep-L','NonRep-S','Non-Interest'};
+                case 3
+                    for c=1:n_cond; cond_name{c} = sprintf('Trial-State %d',c); end
+                    cond_name{n_cond} = 'Non-Interest';
+                case 4
+                    cond_name = {'Letter','Spatial','Non-Interest'};
             end
 
             for c=1:n_cond  %% c : condition index
-
-                % filling in "reginfo"
-                % Transition ID, TT.task_name: 1~68, transition: (seqID, seqType), (0,0)->(0,0):1, (0,0)->(0,1):2,
-                % (0,1)->(0,0):3, (0,1)->(0,1):4,...(3,1)->(3,1):64, 
-                % 1st trial:65, 18th: 66, 35th: 67, 52nd: 68 
-%                 % itaskUni = itaskUni + 1;
-%                 TT.sn        = sn;
-%                 TT.sess      = ses;
-%                 TT.run       = r;
-%                 TT.tS = R.tS(r,t);
-%                 TT.transID(r,t) = R.transID(r,t);
-%                 TT.isRepMotor(r,t) = R.isRepMotor(r,t);
-%                 TT.isRepCue(r,t) = R.isRepCue(r,t);
-%                 TT.isRepBoth(r,t) = R.isRepBoth(r,t);
-%                 TT.isNrep(r,t) = R.isNrep(r,t);
-%                 TT.isNint(r,t) = R.isNint(r,t);
-
-%                 TT.task_name = sprintf('Transition I/D: %d',c);
-%                 if glm==1
-%                     TT.transId      = R.cond(r,t);  %% Transition ID
-%                 else 
-%                     TT.repIdx = R.cond(r,t); % 1: rep, -1: non-rep, 0: non-interest
-%                 end
-                % TT.taskUni   = itaskUni;
-                % 
-                % J.sess(r).cond(c).name = sprintf('transition %d',c);
-                % J.sess(r).cond(c).onset = R.onset(r,find(R.cond(r,:)==c));
-                % J.sess(r).cond(c).duration = R.dur(r,find(R.cond(r,:)==c));
                 if glm==0
                     J.sess(1).cond(1).name = 'All trials';
                     J.sess(1).cond(1).onset = R.onset'+1;  %% added 1
@@ -192,84 +150,157 @@ switch(what)
                 else
                     J.sess(r).cond(c).name = cond_name{c};
                     J.sess(r).cond(c).onset = R.onset(r,find(R.cond(r,:)==c));
-                    J.sess(r).cond(c).duration = 0.001; % used fixed time, 2 secon
-%                     J.sess(r).cond(c).duration = R.dur(r,find(R.cond(r,:)==c));
+                    % J.sess(r).cond(c).duration = 0.001; % used fixed time, 2 secon
+                    J.sess(r).cond(c).duration = R.dur(r,find(R.cond(r,:)==c));
                 end
 
+                % Define time modulator
+                % Add a regressor that account for modulation of betas over time
                 J.sess(r).cond(c).tmod=0;
+
+                % Orthogonalize parametric modulator
+                % Make the parametric modulator orthogonal to the main regressor
                 J.sess(r).cond(c).orth=0;
+                
+                % Define parametric modulators
+                % Add a parametric modulators, like force or reaction time. 
                 J.sess(r).cond(c).pmod=struct('name',{},'param',{},'poly',{});
 
                % add the condition info to the reginfo structure
 
             end
-            % add any additional regressors here.
+
+            %% J.sess(run).multi
+            % Purpose: Specifies multiple conditions for a session. Usage: It is used
+            % to point to a file (.mat or .txt) that contains multiple conditions,
+            % their onsets, durations, and names in a structured format. If you have a
+            % complex design where specifying conditions manually within the script is
+            % cumbersome, you can prepare this information in advance and just
+            % reference the file here. Example Setting: J.sess(run).multi =
+            % {'path/to/multiple_conditions_file.mat'}; If set to {' '}, it indicates
+            % that you are not using an external file to specify multiple conditions,
+            % and you will define conditions directly in the script (as seen with
+            % J.sess(run).cond).
             J.sess(r).multi={''};
+
+            %% J.sess(run).regress
+            % Purpose: Allows you to specify additional regressors that are not
+            % explicitly modeled as part of the experimental design but may account for
+            % observed variations in the BOLD signal. Usage: This could include
+            % physiological measurements (like heart rate or respiration) or other
+            % variables of interest. Each regressor has a name and a vector of values
+            % corresponding to each scan/time point.
             J.sess(r).regress=struct('name',{},'val',{});
+
+            %% J.sess(run).multi_reg
+            % Purpose: Specifies a file containing multiple
+            % regressors that will be included in the model as covariates. Usage: This
+            % is often used for motion correction, where the motion parameters
+            % estimated during preprocessing are included as regressors to account for
+            % motion-related artifacts in the BOLD signal. Example Setting:
+            % J.sess(run).multi_reg = {'path/to/motion_parameters.txt'}; The file
+            % should contain a matrix with as many columns as there are regressors and
+            % as many rows as there are scans/time points. Each column represents a
+            % different regressor (e.g., the six motion parameters from realignment),
+            % and each row corresponds to the value of those regressors at each scan.
             J.sess(r).multi_reg={''};
             
             % Define high pass filter cutoff (in seconds): see glm cases.
             J.sess(r).hpf=hrf_cutoff;
         end
 
-        %T = addstruct(T, TT);
+        % filling in "reginfo"
+        % TT.sn        = sn;
+        % TT.run       = run;
+        % TT.name      = regressors(regr);
+        % TT.cue       = cue_id;
+        % TT.epoch     = epoch;
+        % TT.stimFinger = stimFinger_id;
+        % TT.instr = instr;    
+        % T = addstruct(T, TT);
 
+        % Specify factorial design
         J.fact = struct('name', {}, 'levels', {});
+
+        % Specify hrf parameters for convolution with
+        % regressors
         J.bases.hrf.derivs = [0 0];
-        J.bases.hrf.params = hrf_params;
-        % defaults.stats.fmri.hrf([1:2])=J.bases.hrf.params; 
+
+        J.bases.hrf.params = hrf_params; % positive and negative peak of HRF - set to [] if running wls (?)
+        defaults.stats.fmri.hrf=J.bases.hrf.params; 
+        
+        % Specify the order of the Volterra series expansion 
+        % for modeling nonlinear interactions in the BOLD response
+        % *Example Usage*: Most analyses use 1, assuming a linear
+        % relationship between neural activity and the BOLD
+        % signal.
         J.volt = 1;
+
+        % Specifies the method for global normalization, which
+        % is a step to account for global differences in signal
+        % intensity across the entire brain or between scans.
         J.global = 'None';
+
+        % remove voxels involving non-neural tissue (e.g., skull)
         J.mask = {fullfile(baseDir,anatomicalDir, subj_id, 'rmask_noskull.nii,1')};
+        
+        % Set threshold for brightness threshold for masking 
+        % If supplying explicit mask, set to 0  (default is 0.8)
         J.mthresh = 0.05;
+        
+        % Create map where non-sphericity correction must be applied
         J.cvi_mask = {fullfile(baseDir, anatomicalDir, subj_id, 'rmask_gray.nii')};
+        
+        % Method for non sphericity correction
         J.cvi = cvi_type;
         
+        % remove empty rows (e.g., when skipping runs)
+        J.sess = J.sess(~arrayfun(@(x) all(structfun(@isempty, x)), J.sess));
+
         % Save the GLM file for this subject.
         spm_rwls_run_fmri_spec(J);
         tmp = load(fullfile(J.dir{1},'SPM.mat'));
         delete(fullfile(J.dir{1},'SPM.mat'));
         SPM = tmp.SPM;
         save(fullfile(J.dir{1},'SPM.mat'),'SPM','-v7.3');
-        save(fullfile(J.dir{1},'SPM_info.mat'),'R');
+        save(fullfile(J.dir{1},'R.mat'),'R');
     
     case 'GLM:estimate' % estimate beta coefficient
         % Estimate the GLM from the appropriate SPM.mat file.
         % Make GLM files with case 'GLM_make'.
-        sn = [];
-        fig = 0;
-        vararginoptions(varargin, {'sn', 'glm','fig'});
-        fname = fullfile(dir_git,'SeqSpatialSupp_fMRI/participants.tsv');
-        [subj_id, S_id] = get_id(fname, sn);
-        load(fullfile(baseDir,sprintf(glmDir, glm), subj_id, 'SPM.mat'));
-        SPM.swd = fullfile(baseDir,sprintf(glmDir, glm), subj_id);
+        dir_work = fullfile(baseDir, glmDir, subj_id);
+        load(fullfile(dir_work, 'SPM.mat'));
+        SPM.swd = dir_work;
+
+        iB = SPM.xX.iB;
+        save(fullfile(dir_work, "iB.mat"), "iB", '-v7.3');
+
         % Run the GLM.
-        if fig==0
-            spm_rwls_spm(SPM);
-        else
-            dm = SPM.xX.xKXs.X(SPM.Sess(1).row,SPM.Sess(1).col); % design matrix for one run
-            figure; imagesc(dm); axis square; colorbar;
-            title('Design matrix'); xlabel('Regressors'); ylabel('Volumes'); set(gca, 'fontsize', fs)
-            cv = cov(dm);                   % covariance matrix for one run
-            varE = nanmean(diag(inv(cv)));  % mean variance of the regression estimates
-            varX = nanmean(1./diag(cv));    % mean variance of the regressors in the design matrix
-            vif = varE ./ varX;             % variance inflation factor
-            figure;
-            subplot(2,2,1)
-            imagesc(cv); axis square; title('Covariance matrix'); colorbar;
-            subplot(2,2,2)
-            imagesc(inv(cv)); axis square; title('Inverse of the covariance'); colorbar;
-            subplot(2,2,3)
-            imagesc(1./diag(cv)); axis square; title('Mean variance per regressor'); colorbar;
-            subplot(2,2,4)
-            imagesc(inv(cv)./(1./cv)); axis square; title('Covariance inflation factor'); colorbar;
-            fprintf(1, '\nVariance estimates: %2.3f\nVariance regressors: %2.3f\nVariance inflation factor: %2.3f (the closer to 1, the better)\n', varE, varX, vif);
-        end
-        dir_output = fullfile(baseDir, sprintf(glmDir, glm), subj_id);
-        tmp = load(fullfile(dir_output,'SPM.mat'));
-        delete(fullfile(dir_output,'SPM.mat'));
+        spm_rwls_spm(SPM);
+        % if fig==1
+        %     dm = SPM.xX.xKXs.X(SPM.Sess(1).row,SPM.Sess(1).col); % design matrix for one run
+        %     figure; imagesc(dm); axis square; colorbar;
+        %     title('Design matrix'); xlabel('Regressors'); ylabel('Volumes'); set(gca, 'fontsize', 13)
+        %     cv = cov(dm);                   % covariance matrix for one run
+        %     varE = nanmean(diag(inv(cv)));  % mean variance of the regression estimates
+        %     varX = nanmean(1./diag(cv));    % mean variance of the regressors in the design matrix
+        %     vif = varE ./ varX;             % variance inflation factor
+        %     figure;
+        %     subplot(2,2,1)
+        %     imagesc(cv); axis square; title('Covariance matrix'); colorbar;
+        %     subplot(2,2,2)
+        %     imagesc(inv(cv)); axis square; title('Inverse of the covariance'); colorbar;
+        %     subplot(2,2,3)
+        %     imagesc(1./diag(cv)); axis square; title('Mean variance per regressor'); colorbar;
+        %     subplot(2,2,4)
+        %     imagesc(inv(cv)./(1./cv)); axis square; title('Covariance inflation factor'); colorbar;
+        %     fprintf(1, '\nVariance estimates: %2.3f\nVariance regressors: %2.3f\nVariance inflation factor: %2.3f (the closer to 1, the better)\n', varE, varX, vif);
+        % end
+        
+        tmp = load(fullfile(dir_work,'SPM.mat'));
+        delete(fullfile(dir_work,'SPM.mat'));
         SPM = tmp.SPM;
-        save(fullfile(dir_output,'SPM.mat'),'SPM','-v7.3');
+        save(fullfile(dir_work,'SPM.mat'),'SPM','-v7.3');
 
     case 'GLM:tcontrast'                % 1ST-LEVEL GLM 3: Make t-contrast
         % Condition# 1:anodal 2:sham 3: cathodal
@@ -285,12 +316,12 @@ switch(what)
 
         % vararginoptions(varargin(3:end),{'optimize'});
         if glm~=5
-            cd(fullfile(baseDir, sprintf(glmDir, glm), subj_id));
+            cd(fullfile(baseDir, sprintf('glm_%d', glm), subj_id));
             load SPM;
             SPM     = rmfield(SPM,'xCon');  %% temporarily commented out
         else
-            load(fullfile(baseDir, sprintf(glmDir, 1), subj_id,'SPM.mat')); % load glm=1
-            cd(fullfile(baseDir, sprintf(glmDir, glm), subj_id));            
+            load(fullfile(baseDir, sprintf('glm_%d', 1), subj_id,'SPM.mat')); % load glm=1
+            cd(fullfile(baseDir, sprintf('glm_%d', glm), subj_id));            
         end
 %         load('SPM_info.mat');  %% load R
 %         R = construct_dsgmat(sn,glm);
@@ -500,14 +531,14 @@ switch(what)
         SPM = spm_contrasts(SPM,1:length(SPM.xCon));
         save('SPM.mat', 'SPM','-v7.3');
         SPM = rmfield(SPM,'xVi'); % 'xVi' take up a lot of space and slows down code!
-        save(fullfile(baseDir, sprintf(glmDir, glm), subj_id, 'SPM_light.mat'), 'SPM')
+        save(fullfile(baseDir, sprintf('glm_%d', glm), subj_id, 'SPM_light.mat'), 'SPM')
        % rename contrast images and spmT images
         conName = {'con','spmT'};
         for i = 1:length(SPM.xCon)
             for n=1
 %             for n = 1:numel(conName)
-                oldName = fullfile(baseDir, sprintf(glmDir, glm), subj_id, sprintf('%s_%2.4d.nii',conName{n},i));
-                newName = fullfile(baseDir, sprintf(glmDir, glm), subj_id, sprintf('%s_%s.nii',conName{n},SPM.xCon(i).name));
+                oldName = fullfile(baseDir, sprintf('glm_%d', glm), subj_id, sprintf('%s_%2.4d.nii',conName{n},i));
+                newName = fullfile(baseDir, sprintf('glm_%d', glm), subj_id, sprintf('%s_%s.nii',conName{n},SPM.xCon(i).name));
                 movefile(oldName, newName);
             end % conditions (n, conName: con and spmT)
         end % i (contrasts)
@@ -515,7 +546,7 @@ switch(what)
     
 %     case 'GLM:beta_estimate'                % Estimation of beta-value from glm=1 results encoding individual trials
 %         glm = 1;  %% Using trial-wise beta estimats from glm=1
-%         cd(fullfile(baseDir, sprintf(glmDir, glm), sprintf('S%02d', sn)));
+%         cd(fullfile(baseDir, sprintf('glm_%d', glm), sprintf('S%02d', sn)));
 %         load('SPM.mat');
 %         optC = calc_LSSbetasWeights(SPM);
 
@@ -526,11 +557,11 @@ switch(what)
         fname = fullfile(dir_git,'SeqSpatialSupp_fMRI/participants.tsv');
         [subj_id, S_id] = get_id(fname, sn);
         % Go to subject's directory and load SPM info
-        cd(fullfile(baseDir,sprintf(glmDir, glm), subj_id));
+        cd(fullfile(baseDir,sprintf('glm_%d', glm), subj_id));
         if glm~=5
             load SPM;
         else
-            load(fullfile(baseDir,sprintf(glmDir, 1), subj_id,'SPM.mat'));
+            load(fullfile(baseDir,sprintf('glm_%d', 1), subj_id,'SPM.mat'));
         end
 %        load('SPM_info.mat');
         %load('SPM_info.mat');
@@ -558,7 +589,7 @@ switch(what)
     
     case 'MNI:norm_write'
         vararginoptions(varargin, {'sn','glm'}); %% 
-        groupDir = fullfile(baseDir,sprintf(glmDir,glm),'group');
+        groupDir = fullfile(baseDir,sprintf('glm_%d',glm),'group');
         % for s = sn
             
         disp(sn)
@@ -570,9 +601,9 @@ switch(what)
         intrp = 4;
         fnames = {};
         ofnames = {};
-        load(fullfile(baseDir,sprintf(glmDir,glm),sprintf('S%02d',sn),'SPM_light.mat'));
+        load(fullfile(baseDir,sprintf('glm_%d',glm),sprintf('S%02d',sn),'SPM_light.mat'));
         for c=1:length(SPM.xCon)
-            fnames{c}=fullfile(baseDir, sprintf(glmDir,glm),sprintf('S%02d',sn),sprintf('con_%s.nii',SPM.xCon(c).name));
+            fnames{c}=fullfile(baseDir, sprintf('glm_%d',glm),sprintf('S%02d',sn),sprintf('con_%s.nii',SPM.xCon(c).name));
             ofnames{c} = fullfile(groupDir,sprintf('con_%s_S%02d.nii',SPM.xCon(c).name,sn));
             spmdefs_apply_def(Def,mat,fnames{c},intrp,ofnames{c})
         end
@@ -581,70 +612,66 @@ switch(what)
     
         % end
 
-    case 'WB:vol2surf_indiv' % map indiv vol contrasts (.nii) onto surface (.gifti)
-            % sss_imana('GLM:psc','sn',s) ->
-            % glm = 3;
-            surf = '32k';
-            hemis = [1 2];
-            hem = {'L','R'};
-            % map = 'psc'; % 't'; 'con'; 'dist'; 'psc';
-            % vararginoptions(varargin,{'sn', 'glm', 'hemis', 'map', 'surf'});
-            vararginoptions(varargin,{'sn', 'glm' 'map'});
-            fname = fullfile(dir_git,'diedrichsenlab/SeqSpatialSupp_fMRI/participants.tsv');
-            [subj_id, S_id] = get_id(fname, sn);
-            for h = hemis
-                surfDir = fullfile(baseDir, wbDir);
-                white = fullfile(surfDir,S_id,sprintf('%s.%s.white.%s.surf.gii', S_id, hem{h}, surf));
-                pial = fullfile(surfDir,S_id,sprintf('%s.%s.pial.%s.surf.gii', S_id, hem{h}, surf));
-                C1 = gifti(white);
-                C2 = gifti(pial);
-                if glm~=5
-                    subjGLM = fullfile(baseDir,sprintf(glmDir, glm), subj_id);
-                else
-                    subjGLM =  fullfile(baseDir,sprintf(glmDir, 1), sprintf('S%02d', sn));
+    case 'WB:vol2surf' % map indiv vol contrasts (.nii) onto surface (.gii)
+        dir_work = fullfile(baseDir,wbDir,glmDir,subj_id);
+        if (~exist(dir_work,'dir'))
+            mkdir(dir_work);
+        end
+        dir_glm = fullfile(baseDir,glmDir,subj_id);
+
+        V = {};
+        cols = {};
+        switch map
+            case 'beta' % beta maps (univariate GLM)
+                load(fullfile(dir_glm,'SPM.mat'));
+                fnames = dir(fullfile(dir_glm,'beta_*.nii'));
+                fnames = fnames(SPM.xX.iC);
+                for f = 1:length(fnames)
+                    V{f} = fullfile(fnames(f).folder, fnames(f).name);
+                    cols{f} = fnames(f).name;
                 end
-                load(fullfile(subjGLM, 'SPM.mat')); 
-                switch map
-                    case 't' % t-values maps (univariate GLM)
-                        fnames      = cell(1,numel(SPM.xCon));
-                        con_name    = cell(1,numel(SPM.xCon));
-                        for j=1:numel(fnames)
-                            fnames{j}   = fullfile(subjGLM, sprintf('spmT_%s.nii', SPM.xCon(j).name));
-                            con_name{j} = SPM.xCon(j).name;
-                        end
-                    case 'beta' % beta maps (univariate GLM)
-                        fnames      = cell(1,numel(SPM.Vbeta));
-                        con_name    = cell(1,numel(SPM.Vbeta));
-                        for j=1:numel(fnames)
-                            fnames{j}   = fullfile(subjGLM, SPM.Vbeta(j).fname);
-                            con_name{j} = SPM.Vbeta(j).fname;
-                        end
-                    case 'con' % contrast beta maps (univariate GLM)
-                        fnames      = cell(1,numel(SPM.xCon));
-                        con_name    = cell(1,numel(SPM.xCon));
-                        for j=1:numel(fnames)
-                            fnames{j}   = fullfile(subjGLM, sprintf('con_%s.nii', SPM.xCon(j).name));
-                            con_name{j} = SPM.xCon(j).name;
-                        end    
-                    case 'psc' % percent signal change maps (univariate GLM)
-                        fnames      = cell(1,numel(SPM.xCon));
-                        con_name    = cell(1,numel(SPM.xCon));
-                        for j=1:numel(fnames)
-                            fnames{j}   = fullfile(subjGLM, sprintf('psc_%s.nii', SPM.xCon(j).name));
-                            con_name{j} = SPM.xCon(j).name;
-                        end
-                    case 'rdm'
-                        fname{1} = fullfile(baseDir, 'patterns', sprintf('S%02d', sn),'rdm.nii');
-                        con_name{1} = 'rdm';
-                    case 'res' % residual
-                        fnames{1} = fullfile(subjGLM, 'ResMS.nii');
-                        con_name{1} = 'ResMS';
+            case 't' % t-values maps (univariate GLM)
+                fnames      = cell(1,numel(SPM.xCon));
+                con_name    = cell(1,numel(SPM.xCon));
+                for j=1:numel(fnames)
+                    fnames{j}   = fullfile(subjGLM, sprintf('spmT_%s.nii', SPM.xCon(j).name));
+                    con_name{j} = SPM.xCon(j).name;
                 end
-                outfile = fullfile(surfDir,sprintf('glm%d',glm),sprintf('%s.%s.glm%d.%s.func.gii',subj_id,hem{h},glm,map));
-                G = surf_vol2surf(C1.vertices, C2.vertices, fnames, 'column_names', con_name, 'anatomicalStruct', hem{h}, 'exclude_thres', 0.75, 'faces', C1.faces, 'ignore_zeros', 0);
-                save(G, outfile);
-                fprintf('mapped %s %s glm%d \n', subj_id, hem{h}, glm);
-            end
+            case 'con' % contrast beta maps (univariate GLM)
+                fnames      = cell(1,numel(SPM.xCon));
+                con_name    = cell(1,numel(SPM.xCon));
+                for j=1:numel(fnames)
+                    fnames{j}   = fullfile(subjGLM, sprintf('con_%s.nii', SPM.xCon(j).name));
+                    con_name{j} = SPM.xCon(j).name;
+                end    
+            case 'psc' % percent signal change maps (univariate GLM)
+                fnames      = cell(1,numel(SPM.xCon));
+                con_name    = cell(1,numel(SPM.xCon));
+                for j=1:numel(fnames)
+                    fnames{j}   = fullfile(subjGLM, sprintf('psc_%s.nii', SPM.xCon(j).name));
+                    con_name{j} = SPM.xCon(j).name;
+                end
+            case 'rdm'
+                fname{1} = fullfile(baseDir, 'patterns', sprintf('S%02d', sn),'rdm.nii');
+                con_name{1} = 'rdm';
+            case 'res' % residual
+                fnames{1} = fullfile(subjGLM, 'ResMS.nii');
+                con_name{1} = 'ResMS';
+        end
+
+        for h = [1 2]
+            white = fullfile(baseDir,wbDir,S_id,sprintf('%s.%s.white.32k.surf.gii',S_id,hem{h}));
+            pial = fullfile(baseDir,wbDir,S_id,sprintf('%s.%s.pial.32k.surf.gii',S_id,hem{h}));
+            C1 = gifti(white);
+            C2 = gifti(pial);
+          
+            output = fullfile(dir_work,sprintf('%s.%s.glm%d.%s.func.gii',subj_id,hem{h},glm,map));
+            G = surf_vol2surf(C1.vertices, C2.vertices, V, 'anatomicalStruct', hname{h}, 'exclude_thres', 0.9, 'faces', C2.faces, 'ignore_zeros', 0);
+            G = surf_makeFuncGifti(G.cdata,'anatomicalStruct', hname{h}, 'columnNames', cols);
+            save(G, output);
+
+            fprintf('mapped %s %s glm%d \n', subj_id, hem{h}, glm);
+        end    
 
     case 'WB:vol2surf_group' % map group contrasts on surface (.gifti)
         %sn = subj_vec;
@@ -659,7 +686,7 @@ switch(what)
         if ~exist(groupDir, 'dir')
             mkdir(groupDir);
         end
-        subjGLM = fullfile(baseDir,sprintf(glmDir, glm), 'S01');
+        subjGLM = fullfile(baseDir,sprintf('glm_%d', glm), 'S01');
         load(fullfile(subjGLM, 'SPM.mat'));
         for h = hemis
             fprintf(1, '%s ... ', hemi{h});
@@ -722,7 +749,7 @@ switch(what)
         % vararginoptions(varargin,{'sn', 'glm', 'hemis', 'map', 'sm', 'surf'});
         vararginoptions(varargin,{'glm','map','prefix'});
         groupDir = fullfile(baseDir, wbDir, sprintf('glm%d',glm), map, sprintf('group%s',surf));
-        subjGLM = fullfile(baseDir,sprintf(glmDir, glm), 'S01');
+        subjGLM = fullfile(baseDir,sprintf('glm_%d', glm), 'S01');
         load(fullfile(subjGLM, 'SPM.mat'));
         % Loop over the metric files and calculate the cSPM of each
         for h = hemis
@@ -812,7 +839,7 @@ switch(what)
             fprintf('\nSubject: s%02d\n', s) % output to user
             
             % change directory to subject glm
-            cd(fullfile(baseDir,sprintf(glmDir,glm),sprintf('S%02d',s)))
+            cd(fullfile(baseDir,sprintf('glm_%d',glm),sprintf('S%02d',s)))
 %             temp = dir('psc_Transition*nii');
 %             O = {};            for i=1:length(temp) O{i}=temp(i).name;end;
 %             cond = [1:64]';
@@ -955,11 +982,11 @@ switch(what)
         % legend(legend_text,'FontSize',fsl,'FontName',fontname);        
         set(gca,'YLim',[0 2],'TickLength',[0.01 0.01],'YTick',[0:0.5:2],...
             'XTick',(x_coord(1:2:end)+x_coord(2:2:end))/2,'XTickLabel',ROI_name,...
-            'XLim',[x_coord(1)-1.2 x_coord(end)+1.2],'FontSize',fs,'LineWidth',1,'FontName', fontname);
+            'XLim',[x_coord(1)-1.2 x_coord(end)+1.2],'FontSize',13,'LineWidth',1,'FontName', 'Arial');
 %         ylabel('RS (exe2-exe1): percent signal change','FontSize',fsl,'FontName',fontname);
-        ylabel('Percent signal change','FontSize',fsl,'FontName',fontname);
+        ylabel('Percent signal change','FontSize',16,'FontName','Arial');
 
-        title(title_text,'Fontsize',fsl*2);
+        title(title_text,'Fontsize',32);
         drawline(0,'dir','horz'); 
         print(gcf,fullfile(pathToSave,title_text),sprintf('-d%s','svg'),'-r1000');
         % save(fullfile(pathToSave,title_te));
@@ -977,7 +1004,7 @@ switch(what)
         vararginoptions(varargin, {'sn','glm','roi'});
         fname = fullfile(dir_git,'diedrichsenlab/SeqSpatialSupp_fMRI/participants.tsv');
         [subj_id, S_id] = get_id(fname, sn);
-        load(fullfile(baseDir, sprintf(glmDir,glm),subj_id,'SPM.mat'));
+        load(fullfile(baseDir, sprintf('glm_%d',glm),subj_id,'SPM.mat'));
 %         load(fullfile(baseDir,roiDir,sprintf('%s_SSS_regions.mat',sprintf('S%02d',sn))));
         load(fullfile(baseDir,roiDir,sprintf('%s_Task_regions.glm_%d.mat',subj_id,glm)));
 
@@ -1018,7 +1045,7 @@ switch(what)
         vararginoptions(varargin, {'sn','glm','roi'});
         fname = fullfile(dir_git,'diedrichsenlab/SeqSpatialSupp_fMRI/participants.tsv');
         [subj_id, S_id] = get_id(fname, sn);
-        load(fullfile(baseDir, sprintf(glmDir,glm),subj_id,'SPM.mat'));
+        load(fullfile(baseDir, sprintf('glm_%d',glm),subj_id,'SPM.mat'));
 %         load(fullfile(baseDir,roiDir,sprintf('%s_SSS_regions.mat',sprintf('S%02d',sn))));
         load(fullfile(baseDir,roiDir,sprintf('%s_Task_regions.glm_%d.mat',subj_id,glm)));
         data = region_getdata(SPM.xY.VY,R(roi));
@@ -1095,9 +1122,3 @@ function [et1, et2, tert] = spmj_et1_et2_tert(dataDir, subj_name)
     %% retrieve et1 et2 (in milliseconds)
     et1 = phasediff.EchoTime1 * 1000;
     et2 = phasediff.EchoTime2 * 1000;
-
-
-function [subj_id, S_id] = get_id(fname, sn)
-    pinfo = dload(fname);
-    subj_id = char(pinfo.subj_id(pinfo.sn==sn));
-    S_id = strrep(subj_id,'R','S');

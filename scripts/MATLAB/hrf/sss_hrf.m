@@ -1,40 +1,46 @@
 function varargout = sss_hrf(what,varargin)
 
 if ispc
-    rootDir='F:\SeqSpatialSupp_fMRI';
-elseif isfolder('/Volumes/Diedrichsen_data$/data/<project_name>')
-    rootDir='/Volumes/Diedrichsen_data$/data/<project_name>';
-% After mounting the diedrichsen datashare on the CBS server.
-elseif isfolder('/cifs/diedrichsen/data/<project_name>')
-    rootDir='/cifs/diedrichsen/data/<project_name>';
-else
-    fprintf('Workdir not found. Mount or connect to server and try again.');
+    cd '\\wsl.localhost/ubuntu-22.04/home/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
+    sss_init;
 end
 
-baseDir         = (sprintf('%s/',rootDir));     % Base directory of the project
-BIDS_dir        = 'BIDS';                       % Raw data post AutoBids conversion
-behaviourDir    = 'behavioural_data';           % Timing data from the scanner
-imagingRawDir   = 'imaging_data_raw';           % Temporary directory for raw functional data
-imagingDir      = 'imaging_data';               % Preprocesses functional data
-anatomicalDir   = 'anatomicals';                % Preprocessed anatomical data (LPI + center AC + segemnt)
-fmapDir         = 'fieldmaps';                  % Fieldmap dir after moving from BIDS and SPM make fieldmap
-wbDir           = 'surfaceWB';
-suitDir         = 'suit';
-regDir          = 'RegionOfInterest';
-roiDir          = 'ROI';
+%% HRF parameters
+hrf_params_default = [6 16 1 1 6 0 32];
+hrf_params = [];
 
-dir_git = '\\wsl.localhost/ubuntu-22.04/home/sungbeenpark/github';
-if exist(dir_git, 'dir') && ~contains(path, dir_git)
-    addpath(genpath(dir_git));
-    addpath(genpath(fullfile('cifti_write-matlab/private')));
+%% argument inputs
+sn = [];
+glm = [];
+LR = 'L';
+pre = 10;
+post = 20;
+run = 1;
+roi = 'M1';
+vararginoptions(varargin,{'sn','glm','hrf_params','LR','run','pre','post','roi'});
+hrf_params = [hrf_params hrf_params_default(length(hrf_params)+1:end)];
+if isempty(sn)
+    error('GLM:design -> ''sn'' must be passed to this function.')
 end
-atlasDir = fullfile(dir_git,'SeqSpatialSupp_fMRI/atlas');
+[subj_id, S_id] = get_id(fullfile(dir_git,'SeqSpatialSupp_fMRI/participants.tsv'), sn);
 
-% Read info from participants .tsv file 
-hem = {'L', 'R'};
+if isempty(glm)
+    error('GLM:design -> ''glm'' must be passed to this function.')
+end
+glmDir = sprintf('glm_%d',glm);
+
+%% ROI
+hemi = {'lh','rh'}; % left & right hemi folder names/prefixes
+hem = {'L', 'R'}; % hemisphere: 1=LH 2=RH
+hname = {'CortexLeft', 'CortexRight'}; % 'CortexLeft', 'CortexRight', 'Cerebellum'
 
 %% MAIN OPERATION 
 switch(what)
+    case 'HRF:all'
+        sss_hrf('ROI:calc_region','sn',sn,'glm',glm);
+        % sss_hrf('ROI:deform','sn',sn,'glm',glm);
+        sss_hrf('ROI:make_cifti','sn',sn,'glm',glm);
+
     % case 'ROI:findall' % use this... %rdm, glm3
     %     % ROI 11개를 모아놓은 ROI.L.SSS.label.gii 파일 만들기
     %     h=1;
@@ -88,41 +94,36 @@ switch(what)
 
     case 'ROI:calc_region' % use this... %rdm, glm3
         % ROI template를 피험자의 공간(2D surface)에 매핑
-        hemis = [1, 2];
-        atlas = 'ROI';
+
         % [P,ROI_name]=sss_hrf('ROI:findall');
         % n_roi=length(ROI_name)-1;
         % 왜 그룹 마스크? 개인 마스크가 아니고? -> # of voxels 수를 맞추기 위해?
         %PP = load('/srv/diedrichsen/data/SeqSpatialSupp_fMRI/surfaceWB/group32k/fmask_data.mat');
         %P = (PP.mask'~=0).*P;
-        vararginoptions(varargin,{'sn','glm','atlas'});
 
         %% load Atlas
-        atlasDir = 'F:/Atlas/fs_LR_32';
+        dir_atlas = 'F:/Atlas/fs_LR_32';
 
-        atlasH = {sprintf('%s.32k.L.label.gii', atlas), sprintf('%s.32k.R.label.gii', atlas)};
-        atlas_gii = {gifti(fullfile(atlasDir, atlasH{1})), gifti(fullfile(atlasDir, atlasH{2}))};
-
-        % loop over subjects
-        [subj_id, S_id] = get_id(sn);
+        atlasH = {'ROI.32k.L.label.gii', 'ROI.32k.R.label.gii'};
+        atlas_gii = {gifti(fullfile(dir_atlas, atlasH{1})), gifti(fullfile(dir_atlas, atlasH{2}))};
 
         fprintf('%s...\n',subj_id);
         
         %% load mask.nii from GLM result
-        Vol = fullfile(baseDir,sprintf('glm_%d',glm),subj_id,'mask.nii');
+        Vol = fullfile(baseDir,glmDir,subj_id,'mask.nii');
 
-        surfDir = fullfile(baseDir,wbDir,S_id);
+        dir_surf = fullfile(baseDir,wbDir,S_id);
         Hem = {'L','R'};
         R = {};
         idx = 1;
-        for h=hemis
+        for h=[1 2]
             for reg = 2:length(atlas_gii{h}.labels.name)
                 % pathtosurf=fullfile(atlasDir,sprintf('fs_LR_%sk',surf));
                 % surface=fullfile(pathtosurf,sprintf('fs_LR.%sk.%s.flat.surf.gii',surf,hem{h}));
                 % surface = fullfile('F:/Atlas/fs_LR_32/fs_LR.32k.L.flat.surf.gii');
                 R{idx}.type     = 'surf_nodes_wb';
-                R{idx}.white    = fullfile(surfDir,sprintf('%s.%s.white.32k.surf.gii',S_id,hem{h})); % T1 space
-                R{idx}.pial     = fullfile(surfDir,sprintf('%s.%s.pial.32k.surf.gii',S_id,hem{h}));  % T1 space
+                R{idx}.white    = fullfile(dir_surf,sprintf('%s.%s.white.32k.surf.gii',S_id,hem{h})); % T1 space
+                R{idx}.pial     = fullfile(dir_surf,sprintf('%s.%s.pial.32k.surf.gii',S_id,hem{h}));  % T1 space
                 % R{idx}.flat     = surface;
                 R{idx}.linedef  = [5,0,1];  % take 5 steps along node between white (0) and pial (1) surfaces
                 R{idx}.image    = Vol;     % functional space
@@ -137,8 +138,11 @@ switch(what)
         end
         R = region_calcregions(R, 'exclude', [overlap; overlap+8], 'exclude_thres', .8);
 
-        outputDir = fullfile(baseDir,roiDir,sprintf('glm%d',glm),subj_id);
-        fname=fullfile(outputDir,sprintf('%s.Task_regions.glm%d.mat',subj_id,glm));
+        dir_work = fullfile(baseDir,roiDir,glmDir,subj_id);
+        if (~exist(dir_work,'dir'))
+            mkdir(dir_work);
+        end
+        fname=fullfile(dir_work,sprintf('%s.Task_regions.glm%d.mat',subj_id,glm));
         %fname=fullfile(baseDir,roiDir,sprintf('%s_SSS_regions.mat',sprintf('S%02d',sn)));
 
         %% save R
@@ -147,10 +151,7 @@ switch(what)
         %% save R as an image file (Is it same as the deformation?)
         for r = 1:length(R)
             img = region_saveasimg(R{r}, Vol, 'name', ...
-                fullfile( ...
-                outputDir, sprintf('%s.%s.glm%d.%s.%s.nii', atlas, R{r}.hem, glm, subj_id, R{r}.name) ...
-                ) ...
-                );
+                fullfile(dir_work, sprintf('ROI.%s.glm%d.%s.%s.nii',R{r}.hem,glm,subj_id,R{r}.name)));
         end
 
         fprintf('\nROIs have been defined for %s \n',subj_id);
@@ -158,98 +159,79 @@ switch(what)
 
     case 'ROI:deform'
         % 피험자의 공간에 매핑된 ROI.gii(surface)들을 다시 피험자의 Volume에 매핑
-        LR = 'L';
-        DoSave = true;
-        vararginoptions(varargin,{'sn','glm','LR','DoSave'});
-        DoSave = logical(DoSave);
-        [subj_id, S_id] = get_id(sn);
-
         fprintf('Deformation for %s...',subj_id);
-        switch(LR)
-            case 'L'
-                hemis = 1;
-            case 'R'
-                hemis = 2;
-        end
+
         % workDir = fullfile(baseDir,roiDir);
         % fname = fullfile(workDir,sprintf('%s_Task_regions.glm_%d.mat',subj_id,glm));
-        workDir = fullfile(baseDir,roiDir,sprintf('glm%d',glm),subj_id);
-        fname = fullfile(workDir,sprintf('%s.Task_regions.glm%d.mat',subj_id,glm));
+        dir_work = fullfile(baseDir,roiDir,glmDir,subj_id);
+        fname = fullfile(dir_work,sprintf('%s.Task_regions.glm%d.mat',subj_id,glm));
         R = load(fname); % load the variable R
         R = R.R;
 
-        anatDir = fullfile(baseDir,anatomicalDir,subj_id);
-        deffile = fullfile(anatDir,sprintf('iy_%s_anatomical.nii',subj_id));
+        dir_anat = fullfile(baseDir,anatomicalDir,subj_id);
+        deffile = fullfile(dir_anat,sprintf('iy_%s_anatomical.nii',subj_id));
         R1 = region_deformation(R, deffile, 'mask', R{1}.image); fprintf('done!\n');
         % fname = fullfile(workDir,sprintf('%s.Task_regions.glm%d.mat',subj_id,glm));
         % save(fname,'R1','-v7.3');
 
         % VolFile = fullfile(anatDir,sprintf('%s_anatomical.nii',subj_id));
-        VolFile = fullfile(baseDir,sprintf('glm_%d',glm),subj_id,'mask.nii');
+        VolFile = fullfile(baseDir,glmDir,subj_id,'mask.nii');
         Vol = spm_vol(VolFile);
         varargout={R1, Vol};
 
-        if DoSave
-            cd(workDir);
-            for i = 1:length(R1)
-                region_saveasimg(R1{i}, VolFile);
-            end
+        % save
+        cd(dir_work);
+        for i = 1:length(R1)
+            R1{i}.name = sprintf('deform.%s.%s', R1{i}.hem, R1{i}.name);
+            region_saveasimg(R1{i}, VolFile);
         end
 
     case 'ROI:make_cifti'
         % 피험자의 volume 공간으로 매핑한 ROI 마스크를 이용하여 피험자의
         % y_raw 데이터를 voxel 단위로 얻고, 그 결과를 cifti로 저장
-        LR = 'L';
-        DoSave = true;
-        vararginoptions(varargin,{'sn','glm','LR','DoSave'});
-        DoSave = logical(DoSave);
 
-        [subj_id, S_id] = get_id(sn);
-
-        workDir = fullfile(baseDir,roiDir,sprintf('glm%d',glm),subj_id);
-        fname = fullfile(workDir,sprintf('%s.Task_regions.glm%d.mat',subj_id,glm));
+        fname = fullfile(baseDir,roiDir,glmDir,subj_id,sprintf('%s.Task_regions.glm%d.mat',subj_id,glm));
         % [R, V] = sss_hrf('ROI:deform','sn',sn,'glm',glm,'LR',LR);
         R = load(fname); R = R.R;
 
-        glmDir = fullfile(baseDir,sprintf('glm_%d',glm),subj_id);
-        VolFile = fullfile(glmDir,'mask.nii');
+        dir_glm = fullfile(baseDir,glmDir,subj_id);
+        VolFile = fullfile(dir_glm,'mask.nii');
         V = spm_vol(VolFile);
-        SPM = load(fullfile(glmDir,'SPM.mat'));
+        SPM = load(fullfile(dir_glm,'SPM.mat'));
         SPM = SPM.SPM;
         
         fprintf('Extration Y_raw for each ROI...');
         D = region_getdata(SPM.xY.VY,R);
         
+        dir_work = fullfile(baseDir,wbDir,glmDir,subj_id);
         % cii = {};
         for i = 1:length(D)
             name = R{1,i}.name;
             %% y_raw
             cii = region_make_cifti(R{i},V,'data',D{i}','dtype','series','TR',1);
-            fname = fullfile(workDir,sprintf('cifti.L.glm%d.%s.%s.y_raw.nii',glm,subj_id,name));
-            if DoSave
-                cifti_write(cii, fname);
-            end
+            fname = fullfile(dir_work,sprintf('cifti.L.glm%d.%s.%s.y_raw.nii',glm,subj_id,name));
+            
+            cifti_write(cii, fname);
+            
             %% others
             [beta, Yhat, Yres] = spmj_glm_fit(SPM,D{i});
             % y_hat
             cii = region_make_cifti(R{i},V,'data',Yhat','dtype','series','TR',1);
-            fname = fullfile(workDir,sprintf('cifti.L.glm%d.%s.%s.y_hat.nii',glm,subj_id,name));
-            if DoSave
-                cifti_write(cii, fname);
-            end
+            fname = fullfile(dir_work,sprintf('cifti.L.glm%d.%s.%s.y_hat.nii',glm,subj_id,name));
+            
+            cifti_write(cii, fname);
+            
             % y_res
             cii = region_make_cifti(R{i},V,'data',Yres','dtype','series','TR',1);
-            fname = fullfile(workDir,sprintf('cifti.L.glm%d.%s.%s.y_res.nii',glm,subj_id,name));
-            if DoSave
-                cifti_write(cii, fname);
-            end
+            fname = fullfile(dir_work,sprintf('cifti.L.glm%d.%s.%s.y_res.nii',glm,subj_id,name));
+
+            cifti_write(cii, fname);
         end
         
         % varargout = {cii};
 
     case 'HRF:get_mean_ts'
         % ROI 내의 평균 time series를 GLM 모델과 비교하여 출력.
-        LR = 'L';
         DoSave = false;
         vararginoptions(varargin,{'sn','glm','LR','DoSave'});
         DoSave = logical(DoSave);
@@ -287,48 +269,39 @@ switch(what)
 
         varargout = {Q};
         if DoSave
-            fname = fullfile(workDir,sprintf('%s.glm%d.%drois.mat',subj_id,glm,length(R)));
+            fname = fullfile(dir_work,sprintf('%s.glm%d.%drois.mat',subj_id,glm,length(R)));
             save(fname,'Q','-v7.3');
         end
 
-    case 'HRF:fit_params'
-        LR = 'L';
-        vararginoptions(varargin,{'sn','glm','roi','LR'});
-
-        [subj_id, S_id] = get_id(sn);
-        workDir = fullfile(baseDir,roiDir,sprintf('glm%d',glm),subj_id);
-        
-        %% load y_raw
-        fname = fullfile(workDir,sprintf('cifti.L.glm%d.%s.%s.y_raw.nii',glm,subj_id,roi));
-        cii = cifti_read(fname);
-        Yraw = double(cii.cdata(:,:)');
-        clear cii
-
-        %% load SPM.mat (GLM information)
-        SPM = load(fullfile(baseDir,sprintf('glm_%d',glm),subj_id,'SPM.mat'));
-        SPM = SPM.SPM;
-
-        %% optimization
-        % fit_method = 'gamma';
-        fit_method = 'library';
-        [SPM,Yhat,Yres,p_opt] = spmj_fit_hrfparams(SPM,Yraw,fit_method);
-        
-        varargout = {SPM,Yhat,Yres,p_opt};
+    % case 'HRF:fit_params'
+    %     LR = 'L';
+    %     vararginoptions(varargin,{'sn','glm','roi','LR'});
+    % 
+    %     [subj_id, S_id] = get_id(sn);
+    %     dir_work = fullfile(baseDir,roiDir,sprintf('glm%d',glm),subj_id);
+    % 
+    %     %% load y_raw
+    %     fname = fullfile(dir_work,sprintf('cifti.L.glm%d.%s.%s.y_raw.nii',glm,subj_id,roi));
+    %     cii = cifti_read(fname);
+    %     Yraw = double(cii.cdata(:,:)');
+    %     clear cii
+    % 
+    %     %% load SPM.mat (GLM information)
+    %     SPM = load(fullfile(baseDir,sprintf('glm_%d',glm),subj_id,'SPM.mat'));
+    %     SPM = SPM.SPM;
+    % 
+    %     %% optimization
+    %     % fit_method = 'gamma';
+    %     fit_method = 'library';
+    %     [SPM,Yhat,Yres,p_opt] = spmj_fit_hrfparams(SPM,Yraw,fit_method);
+    % 
+    %     varargout = {SPM,Yhat,Yres,p_opt};
 
     case 'HRF:example'
-        %% initialize
-        LR = 'L';
-        pre = 10;
-        post = 20;
-        run = 1;
-        hrf_params = [6 16 1 1 6 0 32]; % default
-        vararginoptions(varargin,{'sn','glm','roi','LR','run','pre','post','hrf_params'});
+        dir_work = fullfile(baseDir,roiDir,glmDir,subj_id);
 
-        [subj_id, S_id] = get_id(sn);
-        workDir = fullfile(baseDir,roiDir,sprintf('glm%d',glm),subj_id);
-        
         %% load y_raw
-        fname = fullfile(workDir,sprintf('cifti.L.glm%d.%s.%s.y_raw.nii',glm,subj_id,roi));
+        fname = fullfile(dir_work,sprintf('cifti.L.glm%d.%s.%s.y_raw.nii',glm,subj_id,roi));
         cii = cifti_read(fname);
         Yraw = double(cii.cdata(:,:)');
         clear cii
@@ -636,12 +609,6 @@ switch(what)
 %         end
 
 end
-
-
-function [subj_id, S_id] = get_id(sn)
-    pinfo = dload('\\wsl.localhost/ubuntu-22.04/home/sungbeenpark/github/SeqSpatialSupp_fMRI/participants.tsv');
-    subj_id = char(pinfo.subj_id(pinfo.sn==sn));
-    S_id = strrep(subj_id,'R','S');
 
 %%  =======================Project-specific Cases==================================
 
