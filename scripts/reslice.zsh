@@ -48,14 +48,16 @@ Mvox2space=($(mri_info --vox2ras "$anafile" | awk '{print $1,$2,$3,$4,$5,$6,$7,$
 Mvox2space="[${(j:, :)Mvox2space}]"
 
 ## calculate the transformation matrix
-Msurf2space=$(python -c "
+Msurf2space=($(python -c "
 import numpy as np
 Mvox2surf = np.array($Mvox2surf).reshape(4,4)
+ #print(Mvox2surf)
 Mvox2space = np.array($Mvox2space).reshape(4,4)
+ #print(Mvox2space)
 Msurf2space = Mvox2space @ np.linalg.inv(Mvox2surf)
-print(Msurf2space)
- #print(' '.join(map(str, Msurf2space.flatten())))
-")
+print(' '.join(map(str, Msurf2space.flatten())))
+"))
+Msurf2space="[${(j:, :)Msurf2space}]"
 ## ======================================= ##
 ## process hemispheres
 for oo in $hemisphere
@@ -96,7 +98,8 @@ import nibabel as nb
 fname = join('/mnt/f/SeqSpatialSupp_fMRI/surfaceWB/$subj/$subj.$H.$ss.${resolution}k.surf.gii')
 surf = nb.load(fname)
 darray = surf.darrays[0]
-M = np.array($Mvox2space).reshape(4,4)
+M = np.array($Msurf2space).reshape(4,4)
+ #print(M)
 verts = np.hstack(
     [darray.data, np.ones((darray.data.shape[0],1))]
 ) @ M.T
