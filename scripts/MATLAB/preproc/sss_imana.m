@@ -1,69 +1,42 @@
 function varargout = sss_imana(what,varargin)
-%%
-% After mounting the diedrichsen datashare on a mac computer.
-if ismac
-    rootdir='/Volumes/Diedrichsen_data$/data/SeqSpatialSupp_fMRI';
-% After mounting the diedrichsen datashare on the CBS server.
-elseif isunix
-    rootdir='/srv/diedrichsen/data/SeqSpatialSupp_fMRI';
-elseif ispc
-    rootDir='F:\SeqSpatialSupp_fMRI';
-    atlasDir='D:/mobaxterm/sungbeenpark/github/diedrichsenlab/atlas';
-    dir_git = '\\wsl.localhost/ubuntu-22.04/home/sungbeenpark/github';
-else
-    fprintf('Workdir not found. Mount or connect to server and try again.');
+if ispc
+    cd '\\wsl.localhost/ubuntu-22.04/home/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
+    sss_init;
 end
 
-baseDir         = rootDir;     % Base directory of the project
-BIDSDir         = 'BIDS';                       % Raw data post AutoBids conversion
-behavDir        = 'behavDir';           % Timing data from the scanner
-imagingRawDir   = 'imaging_data_raw';           % Temporary directory for raw functional data
-imagingDir      = 'imaging_data';               % Preprocesses functional data
-anatomicalDir   = 'anatomicals';                % Preprocessed anatomicalcentr data (LPI + center AC + segemnt)
-fmapDir         = 'fieldmaps';                  % Fieldmap dir after moving from BIDS and SPM make fieldmap
-suitDir         = 'suit';
-regDir          = 'RegionOfInterest';
-freesurferDir   = 'freesurf';
-wbDir           = 'surfaceWB';
-glmDir          = '/glm_%d';
-roiDir          = 'ROI';
+%% FreeSurfer
+addpath('\\wsl.localhost/ubuntu-22.04/usr/local/Freesurfer/7.4.1');
 
-if exist(dir_git, 'dir') && ~contains(path, dir_git)
-    addpath(genpath(dir_git));
-    addpath(genpath(fullfile('cifti_write-matlab/private')));
-end
-atlasDir = fullfile(dir_git,'SeqSpatialSupp_fMRI/atlas');
-
-%% input arguments
-sn = [];
-rtm = 0;
-prefix = 'u';
-vararginoptions(varargin,{'sn', 'rtm', 'prefix'})
-if isempty(sn)
-    error('BIDS:move_unzip_raw_func -> ''sn'' must be passed to this function.')
-end
-
-%% subject info
-% Read info from participants .tsv file
-pinfo = dload(fullfile(dir_git,'SeqSpatialSupp_fMRI/participants.tsv'));
-subj_id = char(pinfo.subj_id(pinfo.sn==sn));
-S_id = strrep(subj_id,'R','S');
-list_run = cellfun(@(x) sscanf(x, '%d.'), pinfo.runlist(sn), 'UniformOutput', false);
-list_run = list_run{1};
-
-% ROI
-hemi = {'lh','rh'}; % left & right hemi folder names/prefixes
-hem = {'L', 'R'}; % hemisphere: 1=LH 2=RH
-hname = {'CortexLeft', 'CortexRight'}; % 'CortexLeft', 'CortexRight', 'Cerebellum'
-
-% Scanner
-TR = 1000;
+%% Scanner
+TR = 1;
 numDummys  = 8;  % dummy images at the start of each run (these are discarded)
 numTRs = 410; %% Adjust this for experiment
 endTR = 410; % S.Park: prevent the error in sss_imana('FUNC:realign_unwarp','sn',s,'rtm',0)
 
 % nTRs = [410*ones(1,10) 401 406 410 404 410 410 385]; % For S11
 % nTRs = [410*ones(1,16) 385]; % for S09
+%% Adjust this for experiment
+nTRs = [410*ones(1,8)];
+% nTRs = [410*ones(1,10) 401 406 410 404 410 410 385]; % For S11
+% nTRs = [410*ones(1,16) 385]; % for S09
+
+map = 'beta';
+%% argument inputs
+sn = [];
+vararginoptions(varargin,{'sn','nTRs','map'});
+
+if isempty(sn)
+    error('GLM:design -> ''sn'' must be passed to this function.')
+end
+[subj_id, S_id] = get_id(fullfile(dir_git,'SeqSpatialSupp_fMRI/participants.tsv'), sn);
+
+%% ROI
+hemi = {'lh','rh'}; % left & right hemi folder names/prefixes
+hem = {'L', 'R'}; % hemisphere: 1=LH 2=RH
+hname = {'CortexLeft', 'CortexRight'}; % 'CortexLeft', 'CortexRight', 'Cerebellum'
+
+%% prefix of output files
+prefix = 'u';
 
 %% MAIN OPERATION 
 switch(what)
@@ -599,260 +572,24 @@ switch(what)
         movefile(source,dest);
         % end      
 
-    case 'MNI:norm_write'
-        vararginoptions(varargin, {'sn','glm'}); %% 
-        groupDir = fullfile(baseDir,sprintf(glmDir,glm),'group');
-        % for s = sn
-            
-        disp(sn)
-    
-        P = fullfile(baseDir, anatomicalDir,sprintf('S%02d',sn),sprintf('y_S%02d_anatomical.nii',sn));
-        [Def,mat] = spmdefs_get_def(P);
-
-        % apply deformation to contrasts
-        intrp = 4;
-        fnames = {};
-        ofnames = {};
-        load(fullfile(baseDir,sprintf(glmDir,glm),sprintf('S%02d',sn),'SPM_light.mat'));
-        for c=1:length(SPM.xCon)
-            fnames{c}=fullfile(baseDir, sprintf(glmDir,glm),sprintf('S%02d',sn),sprintf('con_%s.nii',SPM.xCon(c).name));
-            ofnames{c} = fullfile(groupDir,sprintf('con_%s_S%02d.nii',SPM.xCon(c).name,sn));
-            spmdefs_apply_def(Def,mat,fnames{c},intrp,ofnames{c})
-        end
-
     case 'SURF:freesurfer'              % SURFACE PREPROCESS 1: Run recon-all on freesurfer
         vararginoptions(varargin, {'sn'}); %% 
-        subj_id = char(pinfo.subj_id(pinfo.sn==sn));
-        S_id = strrep(subj_id,'R','S');
-        freesurf_dir = fullfile(baseDir, freesurferDir);
-        if (~exist(freesurf_dir,'dir'))
-            mkdir(freesurf_dir);
+        dir_freesurf = fullfile(baseDir, freesurferDir);
+        if (~exist(dir_freesurf,'dir'))
+            mkdir(dir_freesurf);
         end
         %mysetEnv(freesurferDir);
-        freesurfer_reconall(freesurf_dir,S_id,fullfile(baseDir,anatomicalDir,S_id,[S_id '_anatomical.nii']));  
+        freesurfer_reconall(dir_freesurf,S_id,fullfile(baseDir,anatomicalDir,S_id,[S_id '_anatomical.nii']));  
     
     case 'WB:surf_resample' % reslice indiv surfaces into fs_lr standard mesh
         % sn = subj_vec; cwd = pwd;
-        surf  = '32k'; % 164k or 32k vertices
-        vararginoptions(varargin, {'sn'});
-        subj_id = char(pinfo.subj_id(pinfo.sn==sn));
-        S_id = strrep(subj_id,'R','S');
-        % for s = sn
         fprintf('reslicing %s\n', subj_id);
         freesurferDir = fullfile(baseDir, freesurferDir);
-        wbDir = fullfile(baseDir, wbDir);
-        surf_resliceFS2WB(S_id, freesurferDir, wbDir, 'resolution', surf);
+        dir_wb = fullfile(baseDir, wbDir);
+        surf_resliceFS2WB(S_id, freesurferDir, dir_wb, 'resolution', '32k');
         % end
+    end
 
-    case 'WB:vol2surf_indiv' % map indiv vol contrasts (.nii) onto surface (.gifti)
-            % sss_imana('GLM:psc','sn',s) ->
-            % glm = 3;
-            surf = '32k';
-            hemis = [1 2];
-            hem = {'L','R'};
-            % map = 'psc'; % 't'; 'con'; 'dist'; 'psc';
-            % vararginoptions(varargin,{'sn', 'glm', 'hemis', 'map', 'surf'});
-            vararginoptions(varargin,{'sn', 'glm' 'map'});
-            subj_id = char(pinfo.subj_id(pinfo.sn==sn));
-            S_id = strrep(subj_id,'R','S');
-            for h = hemis
-                surfDir = fullfile(baseDir, wbDir, S_id);
-                white = fullfile(surfDir, sprintf('%s.%s.white.%s.surf.gii', S_id, hem{h}, surf));
-                pial = fullfile(surfDir, sprintf('%s.%s.pial.%s.surf.gii', S_id, hem{h}, surf));
-                C1 = gifti(white);
-                C2 = gifti(pial);
-                if glm~=5
-                    subjGLM = fullfile(baseDir,sprintf(glmDir, glm), subj_id);
-                else
-                    subjGLM =  fullfile(baseDir,sprintf(glmDir, 1), sprintf('S%02d', sn));
-                end
-                load(fullfile(subjGLM, 'SPM.mat')); 
-                switch map
-                    case 't' % t-values maps (univariate GLM)
-                        fnames      = cell(1,numel(SPM.xCon));
-                        con_name    = cell(1,numel(SPM.xCon));
-                        for j=1:numel(fnames)
-                            fnames{j}   = fullfile(subjGLM, sprintf('spmT_%s.nii', SPM.xCon(j).name));
-                            con_name{j} = SPM.xCon(j).name;
-                        end
-                    case 'con' % contrast beta maps (univariate GLM)
-                        fnames      = cell(1,numel(SPM.xCon));
-                        con_name    = cell(1,numel(SPM.xCon));
-                        for j=1:numel(fnames)
-                            fnames{j}   = fullfile(subjGLM, sprintf('con_%s.nii', SPM.xCon(j).name));
-                            con_name{j} = SPM.xCon(j).name;
-                        end    
-                    case 'psc' % percent signal change maps (univariate GLM)
-                        fnames      = cell(1,numel(SPM.xCon));
-                        con_name    = cell(1,numel(SPM.xCon));
-                        for j=1:numel(fnames)
-                            fnames{j}   = fullfile(subjGLM, sprintf('psc_%s.nii', SPM.xCon(j).name));
-                            con_name{j} = SPM.xCon(j).name;
-                        end
-                    case 'rdm'
-                        fname{1} = fullfile(baseDir, 'patterns', sprintf('S%02d', sn),'rdm.nii');
-                        con_name{1} = 'rdm';
-                    case 'res' % residual
-                        fnames{1} = fullfile(subjGLM, 'ResMS.nii');
-                        con_name{1} = 'ResMS';
-                end
-                outfile = fullfile(surfDir, sprintf('%s.%s.glm%d.%s.func.gii', subj_id, hem{h}, glm, map));
-                G = surf_vol2surf(C1.vertices, C2.vertices, fnames, 'column_names', con_name, 'anatomicalStruct', hem{h}, 'exclude_thres', 0.75, 'faces', C1.faces, 'ignore_zeros', 0);
-                save(G, outfile);
-                fprintf('mapped %s %s glm%d \n', subj_id, hem{h}, glm);
-            end
-
-    case 'WB:vol2surf_group' % map group contrasts on surface (.gifti)
-        %sn = subj_vec;
-        %glm = 1;
-        hemis = [1 2];
-        map = 'psc'; % 't'; 'con'; 'dist'; 'psc';
-        surf = '32k';
-        vararginoptions(varargin,{'sn', 'glm','map','prefix'});
-        %vararginoptions(varargin,{'sn'});
-        groupDir = fullfile(baseDir, wbDir, sprintf('glm%d',glm), map, sprintf('group%s', surf));
-%         dircheck(groupDir);
-        if ~exist(groupDir, 'dir')
-            mkdir(groupDir);
-        end
-        subjGLM = fullfile(baseDir,sprintf(glmDir, glm), 'S01');
-        load(fullfile(subjGLM, 'SPM.mat'));
-        for h = hemis
-            fprintf(1, '%s ... ', hemi{h});
-            inputFiles = {};
-            columnName = {};
-            for s = sn
-                subj_id = char(pinfo.subj_id(pinfo.sn==s));
-                S_id = strrep(subj_id,'R','S');
-                inputFiles{end+1} = fullfile(baseDir, wbDir, S_id, sprintf('%s.%s.glm%d.%s.func.gii', subj_id, hem{h}, glm, map));
-                columnName{end+1} = subj_id;
-            end
-            groupfiles = cell(1);
-            switch map
-                case 't' % t-values maps (univariate GLM)
-                    con = SPM.xCon;
-                    nc  = numel(con);
-                    for ic = 1:nc
-                        groupfiles{ic}  = fullfile(groupDir, sprintf('group.%s.%s.%s.glm%d.%s.func.gii', prefix, map, hem{h}, glm, con(ic).name));
-                    end
-                case 'con' % contrast beta maps (univariate GLM)
-                    con = SPM.xCon;
-                    for ic = 1:numel(con)
-                        groupfiles{ic}  = fullfile(groupDir, sprintf('group.%s.%s.%s.glm%d.%s.func.gii', prefix, map, hem{h}, glm, con(ic).name));
-                    end
-                case 'psc' % percent signal change maps (univariate GLM)
-                    con = SPM.xCon;
-                    for ic = 1:numel(con)
-                        groupfiles{ic}  = fullfile(groupDir, sprintf('group.%s.%s.%s.glm%d.%s.func.gii', prefix, map, hem{h}, glm, con(ic).name));
-                    end
-            end
-            surf_groupGiftis(inputFiles, 'outcolnames', columnName, 'outfilenames', groupfiles);
-            fprintf(1, 'Done.\n');
-        end
-
-    case 'WB:searchlight'
-        S = rsa.rea;
-        % EXAMPLE 1:
-%   % Define a surface-based searchlight for the left hemisphere only
-%   S = rsa.readSurf({'lh.white.surf.gii'},{'lh.pial.surf.gii'});
-%   M = rsa.readMask('mask.img');
-%   L = rsa.defineSearchlight_surface(S,M);
-%
-% EXAMPLE 2:
-%   % Define a surface-based searchlight for both hemispheres, over a
-%   80 voxel searchlight with a radius of 20mm
-%   white   = {'lh.white.surf.gii', 'rh.white.surf.gii'};
-%   pial    = {'lh.pial.surf.gii' , 'rh.pial.surf.gii'};
-%   S       = rsa.readSurf(white,pial);
-%   M       = rsa.readMask('mask.img');
-%   L       = rsa.defineSearchlight(S,'mask',M,'sphere',[20 80]);
-
-    case 'WB:vol2surf_stats' % perform group stats on surface (.gifti)
-        % sn = subj_vec;
-%         glm   = 1;
-        hemis = [1 2];
-        map   = 'psc'; % 't'; 'con'; 'psc';
-        sm    = 3;     % smoothing kernel in mm (optional)
-        surf  = '32k';  % 164k or 32k vertices
-        vert  = str2double(regexp(surf, '\d+', 'match'));
-        % vararginoptions(varargin,{'sn', 'glm', 'hemis', 'map', 'sm', 'surf'});
-        vararginoptions(varargin,{'glm','map','prefix'});
-        groupDir = fullfile(baseDir, wbDir, sprintf('glm%d',glm), map, sprintf('group%s',surf));
-        subjGLM = fullfile(baseDir,sprintf(glmDir, glm), 'S01');
-        load(fullfile(subjGLM, 'SPM.mat'));
-        % Loop over the metric files and calculate the cSPM of each
-        for h = hemis
-            fprintf(1, '%s ... \n', hemi{h});
-            groupfiles = cell(1);
-            switch map
-                case 't' % t-values maps (univariate GLM)
-                    con = SPM.xCon;
-                    nc  = numel(con);
-                    con_name = cell(1);
-                    for ic = 1:nc
-                        con_name{ic} = con(ic).name;
-                    end
-                case 'con' % contrast beta maps (univariate GLM)
-                    con = SPM.xCon;
-                    nc  = numel(con);
-                    con_name = cell(1);
-                    for ic = 1:nc
-                        con_name{ic} = con(ic).name;
-                    end                    
-                case 'psc' % percent signal change maps (univariate GLM)
-                    con = SPM.xCon;
-                    nc  = numel(con);
-                    con_name = cell(1);
-                    for ic = 1:nc
-                        con_name{ic} = con(ic).name;
-                    end
-            end
-            % Perform stats
-            for ic = 1:nc
-                groupfiles{ic} = fullfile(groupDir,sprintf('group.%s.%s.%s.glm%d.%s.func.gii', prefix, map, hem{h}, glm, con_name{ic}));
-%                 metric = gifti(groupfiles{ic});
-%                 data = double(metric.cdata);
-%                 
-%                 % Do the uw noise normalization
-%                 subj_count=0;
-%                 for s = sn
-%                     subj_count=subj_count+1;
-%                     surfDir = fullfile(wbDir, sprintf('s%02d', s));
-%                     res = gifti(fullfile(surfDir, sprintf('%s.%s.glm%d.res.func.gii', sprintf('s%02d', s), hem{h}, glm)));
-%                     res = double(res.cdata);
-%                     data(res>0,subj_count) = data(res>0,subj_count)./sqrt(res(res>0)); 
-%                 end
-%                 
-%                 % save the new group map for this particular contrast
-%                 G = surf_makeFuncGifti(data,'anatomicalStruct',hname{h},'columnNames',surf_getGiftiColumnNames(metric));
-%                 newname = fullfile(groupDir, sprintf('uwgroup.%s.%s.glm%d.%s.func.gii', map, hem{h}, glm, con_name{ic}));
-%                 save(G,newname);
-                
-                
-                % Perform smoothing (optional)
-                if sm>0
-                    surface = fullfile(atlasDir, sprintf('fS_LR_%s/fs_LR.%s.%s.flat.surf.gii', strrep(surf,'k',''), surf, hem{h}));
-                    groupfiles{ic}  = surf_smooth(groupfiles{ic}, 'prefix', sprintf('smooth.%s.',prefix), 'surf', surface, 'kernel', vert);
-                    %groupfiles{ic}  = surf_smooth(newname, 'surf', surface, 'kernel', sm);
-                end
-                metric          = gifti(groupfiles{ic});
-                
-                
-                
-                cSPM            = surf_getcSPM('onesample_t', 'data', metric.cdata); %, 'maskthreshold',0.5); % set maskthreshold to 0.5 = calculate stats at location if 50% of subjects have data at this point
-                C.data(:, ic)   = cSPM.con.con; % mean
-                C.c_name{ic}    = ['mean_' con_name{ic}];
-                C.data(:,ic+nc) = cSPM.con.Z;   % t (confusing)
-                C.c_name{ic+nc} = ['t_' con_name{ic}];
-            end
-            % Save output
-            O = surf_makeFuncGifti(C.data, 'columnNames', C.c_name, 'anatomicalStruct', hname{h});
-            %summaryfile = fullfile(groupDir, sprintf('uwsummary.%s.glm%d.%s.sm%d.func.gii', hem{h}, glm, map, sm));
-            summaryfile = fullfile(groupDir, sprintf('summary.%s.%s.glm%d.%s.sm%d.func.gii', prefix, hem{h}, glm, map, sm));
-            %uwsummary.L.glm3.psc.sm8.func.gii
-            save(O, summaryfile);
-            fprintf(1, 'Done.\n');
-        end
 end
 
 %% Added 
@@ -872,7 +609,7 @@ function calc_PSC_formula = pscFormula(num_run)
     denominator = sprintf('(%s)', strjoin(variables, '+'));
 
     calc_PSC_formula = sprintf('%s./(%s/%d)', numerator, denominator, num_run);
-
+end
 
 function [et1, et2, tert] = spmj_et1_et2_tert(dataDir, subj_name)
     
@@ -895,3 +632,4 @@ function [et1, et2, tert] = spmj_et1_et2_tert(dataDir, subj_name)
     %% retrieve et1 et2 (in milliseconds)
     et1 = phasediff.EchoTime1 * 1000;
     et2 = phasediff.EchoTime2 * 1000;
+end
