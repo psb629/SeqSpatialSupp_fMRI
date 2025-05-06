@@ -23,7 +23,8 @@ nTRs = [410*ones(1,8)];
 map = 'beta';
 %% argument inputs
 sn = [];
-vararginoptions(varargin,{'sn','nTRs','map'});
+rtm = 0;
+vararginoptions(varargin,{'sn','nTRs','map','rtm'});
 
 if isempty(sn)
     error('GLM:design -> ''sn'' must be passed to this function.')
@@ -66,9 +67,9 @@ switch(what)
             
             % FUNC functions:
             sss_imana('FUNC:make_fmap','sn',s);
-            sss_imana('FUNC:realign_unwarp','sn',s,'rtm',0);
-            sss_imana('FUNC:move_realigned_images','sn',s,'prefix','u','rtm',0);
-            sss_imana('FUNC:meanimage_bias_correction','sn',s,'prefix','u','rtm',0);
+            sss_imana('FUNC:realign_unwarp','sn',s,'rtm',rtm);
+            sss_imana('FUNC:move_realigned_images','sn',s,'prefix',prefix,'rtm',rtm);
+            sss_imana('FUNC:meanimage_bias_correction','sn',s,'prefix',prefix,'rtm',rtm);
             % after this step, manual aligment of mean bias corrected image
             % and the anatomical is required.
         end
@@ -78,7 +79,7 @@ switch(what)
         % loop on subjects and preprocessing the data:
         for s = sn
             % FUNC:
-            sss_imana('FUNC:coreg','sn',s,'prefix','u','rtm',0);
+            sss_imana('FUNC:coreg','sn',s,'prefix',prefix,'rtm',rtm);
             sss_imana('FUNC:make_samealign','sn',s);
             sss_imana('FUNC:make_maskImage','sn',s);
         end
@@ -206,13 +207,13 @@ switch(what)
             delete(output_phase);
         end 
         
-    case 'ANAT:reslice_LPI'          
+    case 'ANAT:reslice_LPI' % 수정완료       
         % Reslice anatomical image within LPI coordinate systems
         % handling input args:
 
         % (1) Reslice anatomical image to set it within LPI co-ordinate frames
-        source = fullfile(baseDir,anatomicalDir,char(pinfo.subj_id(pinfo.sn==sn)),[char(pinfo.subj_id(pinfo.sn==sn)) '_anatomical_raw.nii']);
-        dest = fullfile(baseDir,anatomicalDir,char(pinfo.subj_id(pinfo.sn==sn)),[char(pinfo.subj_id(pinfo.sn==sn)) '_anatomical.nii']);
+        source = fullfile(baseDir,anatomicalDir,subj_id,[subj_id '_anatomical_raw.nii']);
+        dest = fullfile(baseDir,anatomicalDir,subj_id,[subj_id '_anatomical.nii']);
         spmj_reslice_LPI(source,'name', dest);
         
         % (2) In the resliced image, set translation to zero (why?)
@@ -222,7 +223,7 @@ switch(what)
         spm_write_vol(V,dat);
 
 
-    case 'ANAT:centre_AC'            
+    case 'ANAT:centre_AC' % 수정완료         
         % Description:
         % Recenters the anatomical data to the Anterior Commissure
         % coordiantes. Doing that, the [0,0,0] coordiante of subject's
@@ -235,7 +236,7 @@ switch(what)
         % This function runs for all subjects and sessions.
 
         % path to the raw anatomical:
-        anat_raw_file = fullfile(baseDir,anatomicalDir,char(pinfo.subj_id(pinfo.sn==sn)),[char(pinfo.subj_id(pinfo.sn==sn)) '_anatomical.nii']);
+        anat_raw_file = fullfile(baseDir,anatomicalDir,subj_id,[subj_id '_anatomical.nii']);
         if ~exist(anat_raw_file,"file")
             error('ANAT:centre_AC -> file %s was not found.',anat_raw_file)
         end
@@ -247,22 +248,32 @@ switch(what)
         
         % changing the transform matrix translations to put AC near [0,0,0]
         % coordinates:
+        pinfo = dload(fullfile(dir_git,'SeqSpatialSupp_fMRI/participants.tsv'));
         % R = V.mat(1:3,1:3);
         % t = -1 * R * [pinfo.locACx(pinfo.sn==sn),pinfo.locACy(pinfo.sn==sn),pinfo.locACz(pinfo.sn==sn)]';
         % V.mat(1:3,4) = t;
-        V.mat(1:3,4) = -[pinfo.locACx(pinfo.sn==sn),pinfo.locACy(pinfo.sn==sn),pinfo.locACz(pinfo.sn==sn)];
+        locACx = pinfo.locACx(pinfo.sn==sn);
+        locACy = pinfo.locACy(pinfo.sn==sn);
+        locACz = pinfo.locACz(pinfo.sn==sn);
+        loc_AC = [locACx locACy locACz]';
+
+        % Solve the equation A @ loc_AC + Translation = 0
+        A = V.mat(1:3,1:3);
+        Trans = -A * loc_AC;
+        V.mat(1:3,4) = Trans;
+
         % writing the image with the changed header:
         spm_write_vol(V,dat);
         fprintf(1,'Done\n');
 
-    case 'ANAT:segmentation'
+    case 'ANAT:segmentation' % 수정완료
         % Segmentation + Normalization
         % manually check results when done
 
         SPMhome=fileparts(which('spm.m'));
         J=[];
         for s=sn
-            J.channel.vols = {fullfile(baseDir,anatomicalDir,char(pinfo.subj_id(pinfo.sn==sn)),[char(pinfo.subj_id(pinfo.sn==sn)),'_anatomical.nii,1'])};
+            J.channel.vols = {fullfile(baseDir,anatomicalDir,subj_id,[subj_id '_anatomical.nii,1'])};
             J.channel.biasreg = 0.001;
             J.channel.biasfwhm = 60;
             J.channel.write = [0 0];
@@ -319,7 +330,7 @@ switch(what)
         % total EPI readout time = = echo spacing (in ms) * base resolution 
         % (also knows as number of echos). If you use GRAPPA acceleration, 
         % you need to divide the total number of echos by two:
-        [et1, et2, tert] = spmj_et1_et2_tert(workdir, char(pinfo.subj_id(pinfo.sn==sn)));
+        [et1, et2, tert] = spmj_et1_et2_tert(workdir, subj_id);
 
         % pull list of runs from the participant.tsv:
         % run_list = pinfo.runlist;
@@ -330,13 +341,13 @@ switch(what)
         % job manager:
         run_list_cell = cellfun(@(x) sprintf('%.02d',str2double(x)), split(pinfo.runlist{sn},'.'), 'UniformOutput', false);
         
-        spmj_makefieldmap(baseDir,char(pinfo.subj_id(pinfo.sn==sn)),run_list_cell, ...
+        spmj_makefieldmap(baseDir,subj_id,run_list_cell, ...
                           'et1', et1, ...
                           'et2', et2, ...
                           'tert', tert, ...
                           'image', numDummys+1, ...
-                          'prefix',prefixepi, ...
-                          'rawdataDir',fullfile(baseDir,imagingRawDir,char(pinfo.subj_id(pinfo.sn==sn))), ...
+                          'prefix', prefixepi, ...
+                          'rawdataDir',fullfile(baseDir,imagingRawDir,subj_id), ...
                           'subfolderFieldmap',subfolderFieldmap);
         % end
 
@@ -537,27 +548,27 @@ switch(what)
         spmj_makesamealign_nifti(char(P),char(Q));
         % end
     
-    case 'FUNC:make_maskImage'       
+    case 'FUNC:make_maskImage' %수정완료
         % Make mask images (noskull and gray_only) for 1st level glm
 
         % loop on sessions:
         % for sess = 1:pinfo.numSess(pinfo.sn==sn)
+        pinfo = dload(fullfile(dir_git,'SeqSpatialSupp_fMRI/participants.tsv'));
         run_list_cell = cellfun(@(x) sprintf('%.02d',str2double(x)), split(pinfo.runlist{sn},'.'), 'UniformOutput', false);
 
-        subj_id = char(pinfo.subj_id(pinfo.sn==sn));
         % bias corrected mean epi image:
         if rtm==0
             nam{1} = fullfile(baseDir,imagingDir,subj_id,['rb' 'mean' prefix subj_id '_run_' run_list_cell{1} '.nii']);
         else
-            nam{1} = fullfile(baseDir,imagingDir,char(pinfo.subj_id(pinfo.sn==sn)),['rb' prefix 'meanepi_' char(pinfo.subj_id(pinfo.sn==sn)) '.nii']);
+            nam{1} = fullfile(baseDir,imagingDir,subj_id,['rb' prefix 'meanepi_' subj_id '.nii']);
         end
-        nam{2}  = fullfile(baseDir,anatomicalDir, subj_id, ['c1' subj_id, '_anatomical.nii']);
-        nam{3}  = fullfile(baseDir,anatomicalDir, subj_id, ['c2' subj_id, '_anatomical.nii']);
-        nam{4}  = fullfile(baseDir,anatomicalDir, subj_id, ['c3' subj_id, '_anatomical.nii']);
+        nam{2}  = fullfile(baseDir, anatomicalDir, subj_id, ['c1' subj_id, '_anatomical.nii']);
+        nam{3}  = fullfile(baseDir, anatomicalDir, subj_id, ['c2' subj_id, '_anatomical.nii']);
+        nam{4}  = fullfile(baseDir, anatomicalDir, subj_id, ['c3' subj_id, '_anatomical.nii']);
         spm_imcalc(nam, fullfile(baseDir,imagingDir,subj_id,'rmask_noskull.nii'), 'i1>1 & (i2+i3+i4)>0.2')
         
-        source = fullfile(baseDir,imagingDir,char(pinfo.subj_id(pinfo.sn==sn)), 'rmask_noskull.nii');
-        dest = fullfile(baseDir,anatomicalDir,char(pinfo.subj_id(pinfo.sn==sn)),'rmask_noskull.nii');
+        source = fullfile(baseDir,imagingDir,subj_id, 'rmask_noskull.nii');
+        dest = fullfile(baseDir,anatomicalDir,subj_id, 'rmask_noskull.nii');
         movefile(source,dest);
         
         % gray matter mask for covariance estimation
@@ -572,26 +583,8 @@ switch(what)
         movefile(source,dest);
         % end      
 
-    case 'SURF:freesurfer'              % SURFACE PREPROCESS 1: Run recon-all on freesurfer
-        vararginoptions(varargin, {'sn'}); %% 
-        dir_freesurf = fullfile(baseDir, freesurferDir);
-        if (~exist(dir_freesurf,'dir'))
-            mkdir(dir_freesurf);
-        end
-        %mysetEnv(freesurferDir);
-        freesurfer_reconall(dir_freesurf,S_id,fullfile(baseDir,anatomicalDir,S_id,[S_id '_anatomical.nii']));  
-    
-    case 'WB:surf_resample' % reslice indiv surfaces into fs_lr standard mesh
-        % sn = subj_vec; cwd = pwd;
-        fprintf('reslicing %s\n', subj_id);
-        freesurferDir = fullfile(baseDir, freesurferDir);
-        dir_wb = fullfile(baseDir, wbDir);
-        surf_resliceFS2WB(S_id, freesurferDir, dir_wb, 'resolution', '32k');
-        % end
     end
-
 end
-
 %% Added 
 %% ------------------------- Functions -------------------------------------
 

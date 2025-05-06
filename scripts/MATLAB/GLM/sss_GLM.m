@@ -242,14 +242,14 @@ switch(what)
         J.global = 'None';
 
         % remove voxels involving non-neural tissue (e.g., skull)
-        J.mask = {fullfile(baseDir,anatomicalDir, subj_id, 'rmask_noskull.nii,1')};
+        J.mask = {fullfile(baseDir,anatomicalDir, S_id, 'rmask_noskull.nii,1')};
         
         % Set threshold for brightness threshold for masking 
         % If supplying explicit mask, set to 0  (default is 0.8)
         J.mthresh = 0.05;
         
         % Create map where non-sphericity correction must be applied
-        J.cvi_mask = {fullfile(baseDir, anatomicalDir, subj_id, 'rmask_gray.nii')};
+        J.cvi_mask = {fullfile(baseDir, anatomicalDir, S_id, 'rmask_gray.nii')};
         
         % Method for non sphericity correction
         J.cvi = cvi_type;
