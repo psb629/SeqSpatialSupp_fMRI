@@ -132,7 +132,9 @@ switch(what)
                                 'BothRep-L','BothRep-S','NonRep-L','NonRep-S','Non-Interest'};
                 case 3
                     for c=1:n_cond; cond_name{c} = sprintf('Trial-State %d',c); end
-                    cond_name{n_cond} = 'Non-Interest';
+                    if n_cond==9 % R11 never wrong 
+                        cond_name{n_cond} = 'Non-Interest';
+                    end
                 case 4
                     cond_name = {'Letter','Spatial','Non-Interest'};
             end
