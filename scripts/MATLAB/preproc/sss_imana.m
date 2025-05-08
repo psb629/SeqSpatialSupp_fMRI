@@ -1,11 +1,13 @@
 function varargout = sss_imana(what,varargin)
 if ispc
     cd '\\wsl.localhost/ubuntu-22.04/home/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
-    sss_init;
+    PathFreeSufer = '\\wsl.localhost/ubuntu-22.04/usr/local/Freesurfer/7.4.1';
+elseif ismac
+    cd '/Users/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
 end
-
+sss_init;
 %% FreeSurfer
-addpath('\\wsl.localhost/ubuntu-22.04/usr/local/Freesurfer/7.4.1');
+addpath(PathFreeSufer)
 
 %% Scanner
 TR = 1;
@@ -581,8 +583,22 @@ switch(what)
         source = fullfile(baseDir,imagingDir,subj_id, 'rmask_gray.nii');
         dest = fullfile(baseDir, anatomicalDir,subj_id,'rmask_gray.nii');
         movefile(source,dest);
-        % end      
+        % end
 
+    case 'FUNC:reslice_R_to_S'
+        R_id = strrep(subj_id,'S','R');
+        dir_work = fullfile(baseDir,imagingDir);
+        if subj_id(1)~='S'
+            for run = 1:8
+                VG = fullfile(dir_work,S_id,sprintf('u%s_run_%02d.nii',S_id,run)); VG = spm_vol(VG);
+                VF = fullfile(dir_work,R_id,sprintf('u%s_run_%02d.nii',R_id,run)); VF = spm_vol(VF);
+                
+                dim = VG.dim;
+                mat = VG.mat;
+                output = fullfile(dir_work,R_id,sprintf('sliced_u%s_run_%02d.nii',R_id,run));
+                spmj_reslice_vol(VF,dim,mat,output);
+            end
+        end
     end
 end
 %% Added 

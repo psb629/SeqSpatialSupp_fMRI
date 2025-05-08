@@ -1,6 +1,9 @@
 if ispc
     rootDir='F:\SeqSpatialSupp_fMRI';
     dir_git = '\\wsl.localhost/ubuntu-22.04/home/sungbeenpark/github';
+elseif ismac
+    rootDir = '/Volumes/Diedrichsen_data$/data/SeqSpatialSupp_fMRI';
+    dir_git = '/Users/sungbeenpark/github';
 else
     fprintf('Workdir not found. Mount or connect to server and try again.');
 end
