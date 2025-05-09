@@ -16,18 +16,16 @@ numDummys  = 8;  % dummy images at the start of each run (these are discarded)
 numTRs = 410; %% Adjust this for experiment
 endTR = 410; % S.Park: prevent the error in sss_imana('FUNC:realign_unwarp','sn',s,'rtm',0)
 
-% nTRs = [410*ones(1,10) 401 406 410 404 410 410 385]; % For S11
-% nTRs = [410*ones(1,16) 385]; % for S09
-%% Adjust this for experiment
-nTRs = [410*ones(1,8)];
-% nTRs = [410*ones(1,10) 401 406 410 404 410 410 385]; % For S11
-% nTRs = [410*ones(1,16) 385]; % for S09
-
-map = 'beta';
 %% argument inputs
 sn = [];
 rtm = 0;
+nTRs = 410*ones(1,8);
+map = 'beta';
 vararginoptions(varargin,{'sn','nTRs','map','rtm'});
+
+%% Adjust this for experiment
+% nTRs = [410*ones(1,10) 401 406 410 404 410 410 385]; % For S11
+% nTRs = [410*ones(1,16) 385]; % for S09
 
 if isempty(sn)
     error('GLM:design -> ''sn'' must be passed to this function.')
@@ -590,13 +588,14 @@ switch(what)
         R_id = strrep(subj_id,'S','R');
         dir_work = fullfile(baseDir,imagingDir);
         if subj_id(1)~='S'
+            fprintf(subj_id);
             for run = 1:8
                 VG = fullfile(dir_work,S_id,sprintf('u%s_run_%02d.nii',S_id,run)); VG = spm_vol(VG);
                 VF = fullfile(dir_work,R_id,sprintf('u%s_run_%02d.nii',R_id,run)); VF = spm_vol(VF);
                 
                 dim = VG.dim;
                 mat = VG.mat;
-                output = fullfile(dir_work,R_id,sprintf('sliced_u%s_run_%02d.nii',R_id,run));
+                output = fullfile(dir_work,R_id,sprintf('resliced_u%s_run_%02d.nii',R_id,run));
                 spmj_reslice_vol(VF,dim,mat,output);
             end
         end
