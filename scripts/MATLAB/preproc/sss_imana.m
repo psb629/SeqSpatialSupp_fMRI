@@ -4,6 +4,7 @@ if ispc
     PathFreeSufer = '\\wsl.localhost/ubuntu-22.04/usr/local/Freesurfer/7.4.1';
 elseif ismac
     cd '/Users/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
+    PathFreeSufer = '';
 end
 sss_init;
 %% FreeSurfer

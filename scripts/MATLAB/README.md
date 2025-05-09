@@ -1,0 +1,17 @@
+drwxr-xr-x   17 sungbeenpark  staff    544 May  9 12:28 .
+drwxr-xr-x   28 sungbeenpark  staff    896 May  9 12:28 ..
+-rw-r--r--@   1 sungbeenpark  staff   6148 May  8 16:44 .DS_Store
+drwxr-xr-x    4 sungbeenpark  staff    128 May  8 12:15 GLM
+-rw-r--r--    1 sungbeenpark  staff    115 May  9 12:28 README.md
+drwxr-xr-x   12 sungbeenpark  staff    384 May  8 12:15 dataframe
+drwxr-xr-x  177 sungbeenpark  staff   5664 May  8 12:15 freesurfer
+-rw-r--r--    1 sungbeenpark  staff    159 May  8 12:15 get_id.m
+drwxr-xr-x   12 sungbeenpark  staff    384 May  8 12:15 hrf
+drwxr-xr-x    4 sungbeenpark  staff    128 May  8 12:15 imaging
+drwxr-xr-x    6 sungbeenpark  staff    192 May  8 12:15 preproc
+drwxr-xr-x  979 sungbeenpark  staff  31328 May  8 12:15 spm
+drwxr-xr-x   21 sungbeenpark  staff    672 May  8 15:44 spmj_tools
+-rw-r--r--@   1 sungbeenpark  staff   1238 May  8 17:02 sss_init.m
+drwxr-xr-x   19 sungbeenpark  staff    608 May  8 12:15 surfAnalysis
+drwxr-xr-x   48 sungbeenpark  staff   1536 May  8 12:15 surfing
+drwxr-xr-x   31 sungbeenpark  staff    992 May  8 12:15 tmp
