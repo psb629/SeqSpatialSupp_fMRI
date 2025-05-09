@@ -39,17 +39,18 @@ for r=1:nRun
     R.isError(r,:) = S.isError(idx);
 
     for t=1:nTR
-        R.onset(r,t) = (S.startTimeReal(idx(t)) + 1000 + S.RT(idx(t)))*0.001;
-        % R.onset(r,t) = S.startTimeReal(idx(t))/1000;
+        % R.onset(r,t) = (S.startTimeReal(idx(t)) + 1000 + S.RT(idx(t)))*0.001;
+        R.onset(r,t) = (S.startTimeReal(idx(t)) + 1000) * 0.001;
 
         if S.RT(idx(t))==0
             R.dur(r,t)=0;  %% invalid trials 
         else
-            if S.MT(idx(t))==0   
-                R.dur(r,t) = (3000-S.MT(idx(t)))*0.001;
-            else
-                R.dur(r,t) = S.MT(idx(t))*0.001;
-            end
+            R.dur(r,t) = 2; % fix the duration
+            % if S.MT(idx(t))==0   
+            %     R.dur(r,t) = (3000-S.MT(idx(t)))*0.001;
+            % else
+            %     R.dur(r,t) = S.MT(idx(t))*0.001;
+            % end
         end
     end
     R.isValid(r,:) = (S.RT(idx)~=0);
