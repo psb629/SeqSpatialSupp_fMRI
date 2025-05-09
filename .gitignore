@@ -15,3 +15,6 @@ __pycache__
 # Ransomware
 README_FOR_DECRYPT.txt
 .encrypt
+
+# NTFS ADS
+*:Zone.Identifier
