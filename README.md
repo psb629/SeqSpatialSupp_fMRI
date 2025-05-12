@@ -31,11 +31,11 @@ sss_imana('PREP:FUNC-pre','sn',<subject number>)
 
 ii) Manual run:
 - Open `fsleyes`
-- Add anatomical image and **bmean.nii** (bias corrected mean) image to overlay
-- click on the bias corrected mean image in the ‘Overlay list` in the bottom left of the fsleyes window. list to highlight it.
+- Add anatomical image and *bmean.nii* (bias corrected mean) image to overlay
+- click on the bias corrected mean image in the ‘Overlay list' in the bottom left of the fsleyes window. list to highlight it.
 - Open `tools` -> `Nudge`
-- Manually adjust **bmean.nii** image to the anatomical by changing the 6 parameters (translation xyz and rotation xyz). Do not change the *scales*!
-- When done, click apply and close the tool tab. Then to save the changes, click on the save icon next to the mean image name in the ‘Overlay list’ and save the new image by adding ‘**r**’ in the beginning of the name: **rbmean.nii**. If you don’t set the format to be .nii, fsleyes automatically saves it as a .nii.gz so either set it or gunzip afterwards to make it compatible with SPM.
+- Manually adjust *bmean.nii* image to the anatomical by changing the 6 parameters (translation xyz and rotation xyz). Do not change the **scales**!
+- When done, click apply and close the tool tab. Then to save the changes, click on the save icon next to the mean image name in the ‘Overlay list’ and save the new image by adding ‘*r*’ in the beginning of the name: *rbmean.nii*. If you don’t set the format to be .nii, fsleyes automatically saves it as a .nii.gz so either set it or gunzip afterwards to make it compatible with SPM.
 
 iii) Automatic run (post)
 ```
