@@ -60,7 +60,7 @@ prefix = 'u';  % Unwarped
 
         fprintf('Manually align the mean bias corrected image and the anatomical\n')
     
-    case 'PREP:step1'           
+    case 'PREP:FUNC-pre'           
         % All preprocessing steps by just one go (AC coordinates (loc_AC) are prerequisite)
   
         % loop on subjects and preprocessing the data:
@@ -72,18 +72,18 @@ prefix = 'u';  % Unwarped
             % FUNC functions:
             sss_imana('FUNC:make_fmap','sn',s);
             sss_imana('FUNC:realign_unwarp','sn',s,'rtm',rtm);
-            sss_imana('FUNC:move_realigned_images','sn',s,'prefix',prefix,'rtm',rtm);
-            sss_imana('FUNC:meanimage_bias_correction','sn',s,'prefix',prefix,'rtm',rtm);
+            sss_imana('FUNC:move_realigned_images','sn',s);
+            sss_imana('FUNC:meanimage_bias_correction','sn',s);
             % after this step, manual aligment of mean bias corrected image
             % and the anatomical is required.
         end
         fprintf('Manually align the mean bias corrected image and the anatomical\n')
 
-    case 'PREP:step2'
+    case 'PREP:FUNC-post'
         % loop on subjects and preprocessing the data:
         for s = sn
             % FUNC:
-            sss_imana('FUNC:coreg','sn',s,'prefix',prefix,'rtm',rtm);
+            sss_imana('FUNC:coreg','sn',s);
             sss_imana('FUNC:make_samealign','sn',s);
             sss_imana('FUNC:make_maskImage','sn',s);
         end
@@ -362,26 +362,8 @@ prefix = 'u';  % Unwarped
         % create uS01_run_??.nii, rp_S01_run_??.txt and meanuS01_run_01.nii
         % in imagingRawDir directory
 
-        % loop on sessions:
-        % for sess = 1:pinfo.numSess(pinfo.sn==sn)
-        
-        % startTR = numDummys+1;
-        % startTR = 1;
-        % pull list of runs from the participant.tsv:
         run_list = cellfun(@(x) sprintf('run_%.02d',str2double(x)), split(pinfo.runlist{sn},'.'), 'UniformOutput', false);
-        
-        % epi_runs = dir(fullfile(baseDir, imagingRawDir, subj_id, [subj_id '_run_*.nii']));
-        % fmap_runs = dir(fullfile(baseDir, fmapDir, subj_id, ['vdm5_sc' subj_id '_phase_run_*.nii']));
-        % 
-        % epi_list = {};
-        % fmap_list = {};
-        % for run = 1:length(epi_runs)
-        %     epi_list{end+1} = fullfile(epi_runs(run).folder, epi_runs(run).name);
-        %     fmap_list{end+1} = fullfile(fmap_runs(run).folder, fmap_runs(run).name);
-        % end
 
-%         endTR = [405*ones(1,16) 380];  %% For S11
-        % below inf -> enTR
         spmj_realign_unwarp(subj_id, run_list, ...
             'prefix', prefix, ...
             'fmap_dir', fullfile(baseDir, fmapDir), ...
@@ -389,54 +371,54 @@ prefix = 'u';  % Unwarped
             'base_dir', baseDir,...
             'rtm', rtm ...
             );
-        % end
 
     case 'FUNC:move_realigned_images'
         % Move images created by realign(+unwarp) into imaging_data
         % move uS01_run_??.nii, rp_S01_run_??.txt and meanuS01_run_01.nii
         % to imagingDir directory
 
-        % loop on sessions:
-        % for sess = 1:pinfo.numSess(pinfo.sn==sn)
-        % pull list of runs from the participant.tsv:
         run_list = cellfun(@(x) sprintf('%.02d',str2double(x)), split(pinfo.runlist{sn},'.'), 'UniformOutput', false);
+
+
+        % Move images created by realign(+unwarp) into imaging_data
+        realigned_epi_files = dir(fullfile(baseDir,imagingRawDir,subj_id, sprintf('%s%s_run_*.nii',prefix,subj_id)));
+        rp_files = dir(fullfile(baseDir,imagingRawDir,subj_id, sprintf('rp_%s_run_*.txt',subj_id)));
         
+        dir_dest = fullfile(baseDir,imagingDir,subj_id);
+        if ~exist(dir_dest,'dir')
+            mkdir(dir_dest)
+        end
+
         % loop on runs of the session:
-        for r = 1:length(run_list)
+        for run = 1:length(run_list)
             % realigned (and unwarped) images names:
-            file_name = [prefix, subj_id, '_run_', run_list{r}, '.nii'];
-            source = fullfile(baseDir,imagingRawDir,subj_id,file_name);
-            dest = fullfile(baseDir,imagingDir,subj_id);
-            if ~exist(dest,'dir')
-                mkdir(dest)
-            end
-            dest = fullfile(baseDir,imagingDir,subj_id,file_name);
+            source = fullfile(realigned_epi_files(run).folder, realigned_epi_files(run).name);
+            
+            out_name = realigned_epi_files(run).name(length(prefix) + 1:end); % remove the prefix from realigned (and unwarped) file names
+            dest = fullfile(dir_dest, out_name);
             % move to destination:
-            [status,msg] = movefile(source,dest);
+            fprintf('moving and renaming imaging_data_raw/%s --> imaging_data/%s\n',realigned_epi_files(run).name,out_name)
+            [status,msg] = copyfile(source,dest);
             if ~status  
-                error('BIDS:move_realigned_images -> %s',msg)
+                error('FUNC:move_realigned_images -> %s',msg)
             end
 
             % realign parameters names:
-            source = fullfile(baseDir,imagingRawDir,subj_id,['rp_', subj_id, '_run_', run_list{r}, '.txt']);
-            dest = fullfile(baseDir,imagingDir,subj_id,['rp_', subj_id, '_run_', run_list{r}, '.txt']);
+            source = fullfile(rp_files(run).folder, rp_files(run).name);
+            dest = fullfile(dir_dest, rp_files(run).name);
             % move to destination:
-            [status,msg] = movefile(source,dest);
+            [status,msg] = copyfile(source,dest);
             if ~status  
-                error('BIDS:move_realigned_images -> %s',msg)
+                error('FUNC:move_realigned_images -> %s',msg)
             end
         end
+
+        mean_epi_files = dir(fullfile(baseDir,imagingRawDir,subj_id, '*mean*.nii'));
+
+        % move the mean epi file:
+        source = fullfile(mean_epi_files(1).folder, mean_epi_files(1).name);
+        dest = fullfile(dir_dest, mean_epi_files(1).name);
         
-        % mean epi name - the generated file name will be different for
-        % rtm=0 and rtm=1. Extra note: rtm is an option in
-        % realign_unwarp function. Refer to spmj_realign_unwarp().
-        if rtm==0   % if registered to first volume of each run:
-            source = fullfile(baseDir,imagingRawDir,subj_id,['mean', prefix, subj_id, '_run_', run_list{1}, '.nii']);
-            dest = fullfile(baseDir,imagingDir,subj_id,['mean', prefix, subj_id, '_run_', run_list{1}, '.nii']);
-        else        % if registered to mean image of each run:
-            source = fullfile(baseDir,imagingRawDir,subj_id,[prefix, 'meanepi_', subj_id, '.nii']);
-            dest = fullfile(baseDir,imagingDir,subj_id,[prefix, 'meanepi_', subj_id, '.nii']);
-        end
         % move to destination:
         [status,msg] = movefile(source,dest);
         if ~status  
