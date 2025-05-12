@@ -14,12 +14,12 @@ sss_imana('PREP:ANAT-all','sn',<subject number>)
 
 i) recon-all
 ```
-reconall -s <subject id>
+scripts/reconall.zsh -s <subject id>
 ```
 
 ii) reslice
 ```
-reslice -s <subject id> -a <surface name>
+scripts/reslice.zsh -s <subject id> -a <surface name>
 ```
 
 ### 1-2. Functional Image
@@ -74,8 +74,6 @@ trial state: (i,j)
 - j=0: Letter
 - j=1: Spatial
 
-ii) GLM = 3: Trial State
-
 |     |(0,0)|(0,1)|(1,0)|(1,1)|(2,0)|(2,1)|(3,0)|(3,1)| 
 |-----|-----|-----|-----|-----|-----|-----|-----|-----|
 |(0,0)|  B  | S00 | C01 | N02 | C03 | N04 | C05 | N06 |
@@ -86,3 +84,6 @@ ii) GLM = 3: Trial State
 |(2,1)|     |     |     |     |     |  B  | N25 | C26 |
 |(3,0)|     |     |     |     |     |     |  B  | S27 |
 |(3,1)|     |     |     |     |     |     |     |  B  |
+
+ii) GLM = 3: Trial State
+
