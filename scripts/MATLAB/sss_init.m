@@ -21,7 +21,7 @@ freesurferDir   = 'freesurf';
 wbDir           = 'surfaceWB';
 roiDir          = 'ROI';
 
-if exist(dir_git, 'dir') && ~contains(path, dir_git)
+if exist(dir_git, 'dir')
     addpath(genpath(dir_git));
 end
 atlasDir = fullfile(dir_git,'SeqSpatialSupp_fMRI/atlas');
