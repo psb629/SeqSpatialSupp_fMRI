@@ -40,18 +40,18 @@ sss_imana('PREP:FUNC-all','sn',<subject number>)
 sss_GLM('GLM:all','sn',<subject number>,'glm',<GLM number>)
 ```
 
-### Note, GLM numbers
+### GLM number
 
 i) GLM = 2: Repetition
 
-|  | trial ${}_{t-1}$ | trial ${}_{t}$ |
+|  | trial $t-1$ | trial $t$ |
 |---------|---------|---------|
 | Both-Rep| $(i,j)$ | $(i,j)$ |
 | Cue-Rep | $(i,\neg j)$ | $(i,j)$ |
 | Seq-Rep | $(\neg i,j)$ | $(i,j)$ |
 | NRep    | $(\neg i,\neg j)$ | $(i,j)$ |
 
-trial state: $ (i,j) $
+trial state: (i,j)
 
 - i=0: 32451
 - i=1: 35124
