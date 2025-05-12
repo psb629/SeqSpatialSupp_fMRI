@@ -31,11 +31,11 @@ sss_imana('PREP:FUNC-pre','sn',<subject number>)
 
 ii) Manual run:
 - Open `fsleyes`
-- Add anatomical image and *bmean.nii* (bias corrected mean) image to overlay
+- Add anatomical image and b*mean.nii* (bias corrected mean) image to overlay
 - click on the bias corrected mean image in the ‘Overlay list' in the bottom left of the fsleyes window. list to highlight it.
 - Open `tools` -> `Nudge`
 - Manually adjust *bmean.nii* image to the anatomical by changing the 6 parameters (translation xyz and rotation xyz). Do not change the **scales**!
-- When done, click apply and close the tool tab. Then to save the changes, click on the save icon next to the mean image name in the ‘Overlay list’ and save the new image by adding ‘*r*’ in the beginning of the name: *rbmean.nii*. If you don’t set the format to be .nii, fsleyes automatically saves it as a .nii.gz so either set it or gunzip afterwards to make it compatible with SPM.
+- When done, click apply and close the tool tab. Then to save the changes, click on the save icon next to the mean image name in the ‘Overlay list’ and save the new image by adding ‘r’ in the beginning of the name: r*bmean.nii*. If you don’t set the format to be .nii, fsleyes automatically saves it as a .nii.gz so either set it or gunzip afterwards to make it compatible with SPM.
 
 iii) Automatic run (post)
 ```
@@ -65,15 +65,6 @@ i) GLM = 2: Repetition
 | Seq-Rep | $(\neg i,j)$ | $(i,j)$ |
 | NRep    | $(\neg i,\neg j)$ | $(i,j)$ |
 
-trial state: (i,j)
-
-- i=0: 32451
-- i=1: 35124
-- i=2: 13254
-- i=3: 14523$
-- j=0: Letter
-- j=1: Spatial
-
 |     |(0,0)|(0,1)|(1,0)|(1,1)|(2,0)|(2,1)|(3,0)|(3,1)| 
 |-----|-----|-----|-----|-----|-----|-----|-----|-----|
 |(0,0)|  B  | S00 | C01 | N02 | C03 | N04 | C05 | N06 |
@@ -85,5 +76,11 @@ trial state: (i,j)
 |(3,0)|     |     |     |     |     |     |  B  | S27 |
 |(3,1)|     |     |     |     |     |     |     |  B  |
 
-ii) GLM = 3: Trial State
+ii) GLM = 3: Trial State (i,j)
 
+- i=0: 32451
+- i=1: 35124
+- i=2: 13254
+- i=3: 14523
+- j=0: Letter
+- j=1: Spatial
