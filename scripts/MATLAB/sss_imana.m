@@ -512,29 +512,25 @@ prefix = 'u';  % Unwarped
         % transform matrix of the coregistered image, they will all
         % tranform into the anatomical coordinates space.
 
-        % loop on sessions:
-        % for sess = 1:pinfo.numSess(pinfo.sn==sn)
-        % pull list of runs from the participant.tsv:
-         run_list = cellfun(@(x) sprintf('%.02d',str2double(x)), split(pinfo.runlist{sn},'.'), 'UniformOutput', false);
-
+        epi_files = dir(fullfile(baseDir,imagingDir,subj_id, [subj_id '_run_*.nii']));
+        epi_list = {}; % Initialize as an empty cell array
+        for run = 1:length(epi_files)
+            epi_list{end+1} = fullfile(epi_files(run).folder, epi_files(run).name);
+        end
         
         % select the reference image:
-        if rtm==0
-            P{1} = fullfile(baseDir,imagingDir,char(pinfo.subj_id(pinfo.sn==sn)),['rb' 'mean' prefix char(pinfo.subj_id(pinfo.sn==sn)) '_run_' run_list{1} '.nii']);
-        else
-            P{1} = fullfile(baseDir,imagingDir,char(pinfo.subj_id(pinfo.sn==sn)),['rb' prefix 'meanepi_' char(pinfo.subj_id(pinfo.sn==sn)) '.nii']);
-        end
-
+        mean_epi = dir(fullfile(baseDir,imagingDir,subj_id, ['bmean' prefix subj_id '_run_*.nii']));
+        P{1} = fullfile(mean_epi.folder, mean_epi.name);
+        
         % select images to be realigned:
         Q = {};
-        for r = 1:length(run_list)
-            for i = 1:numTRs
-                 Q{end+1} = fullfile(baseDir,imagingDir,char(pinfo.subj_id(pinfo.sn==sn)),[prefix char(pinfo.subj_id(pinfo.sn==sn)) '_run_' run_list{r} '.nii,' num2str(i)]);
+        for r = 1:length(epi_list)
+            for j = 1:nTRs
+                Q{end+1} = fullfile(sprintf('%s,%d', epi_list{r}, j));
             end
         end
-
+        
         spmj_makesamealign_nifti(char(P),char(Q));
-        % end
     
     case 'FUNC:make_maskImage' %수정완료
         % Make mask images (noskull and gray_only) for 1st level glm
