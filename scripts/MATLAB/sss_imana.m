@@ -14,11 +14,10 @@ addpath(PathFreeSufer)
 TR = 1;
 numDummys  = 8;  % dummy images at the start of each run (these are discarded)
 numTRs = 410; %% Adjust this for experiment
-endTR = 410; % S.Park: prevent the error in sss_imana('FUNC:realign_unwarp','sn',s,'rtm',0)
 
 %% argument inputs
 sn = [];
-rtm = 0;
+rtm = 0;   % Register To Mean
 nTRs = 410*ones(1,8);
 map = 'beta';
 vararginoptions(varargin,{'sn','nTRs','map','rtm'});
@@ -42,10 +41,10 @@ hem = {'L', 'R'}; % hemisphere: 1=LH 2=RH
 hname = {'CortexLeft', 'CortexRight'}; % 'CortexLeft', 'CortexRight', 'Cerebellum'
 
 %% prefix of output files
-prefix = 'u';
+prefix = 'u';  % Unwarped
 
 %% MAIN OPERATION 
-switch(what)
+    switch(what)
     case 'PREP:step0'           
         % All preprocessing steps by just one go (AC coordinates (loc_AC) are prerequisite)
         % handling input args:
@@ -359,15 +358,15 @@ switch(what)
         % end
 
     case 'FUNC:realign_unwarp'
-        % Do spm_realign_unwarp
+        % Motion Correction.
         % create uS01_run_??.nii, rp_S01_run_??.txt and meanuS01_run_01.nii
         % in imagingRawDir directory
 
         % loop on sessions:
         % for sess = 1:pinfo.numSess(pinfo.sn==sn)
         
-        %startTR = numDummys+1;
-        startTR = 1;
+        % startTR = numDummys+1;
+        % startTR = 1;
         % pull list of runs from the participant.tsv:
         run_list = cellfun(@(x) sprintf('run_%.02d',str2double(x)), split(pinfo.runlist{sn},'.'), 'UniformOutput', false);
         
@@ -445,32 +444,35 @@ switch(what)
         end
         % end
     
-    case 'FUNC:meanimage_bias_correction'                                         
-        % correct bias for mean image of 1st session. If the realignment
-        % was done with respect to the first volume of each run of each 
-        % session, the mean image will be calculated on the first run of
-        % each session and will be called 'meanu*_run_01.nii' ('mean' 
-        % indicates the image is average of the volumes and 'u' indicates
-        % it's unwarped). Therefore, we do the bias correction on this 
-        % file.
+    case 'FUNC:meanimage_bias_correction'
+        % make mean images including 'bmeanuS??_run_01.nii'
+        % EPI images often contain smooth artifacts caused by MRI
+        % physics which make the intensity of signal from the same
+        % tissue (e.g., grey matter, white matter) non-uniform. This
+        % step perform bias correction and creates an image where the
+        % signal from each tissue type is more uniform. This image is
+        % then co-registered to the anatomical image. Bias correction
+        % help make co-registration more accurate. If the realignment
+        % was done with respect to the first volume of each run of each
+        % session, the mean image will be calculated on the first run
+        % of each session and will be called 'meanu*_run_01.nii'
+        % ('mean' indicates the image is average of the volumes and 'u'
+        % indicates it's unwarped). Therefore, we do the bias
+        % correction on this file. But if you do the realignment to the
+        % mean epi of every run, the generated mean file will be named
+        % 'umeanepi_*' and we do the bias correction on this file. In
+        % addition, this step generates five tissue probability maps
+        % (c1-5) for grey matter, white matter, csf, bone and soft
+        % tissue.
         % But if you do the realignment to the mean epi of every run, the
         % generated mean file will be named 'umeanepi_*' and we do the bias
         % correction on this file.
 
-        % loop on sessions:
-        % for sess = 1:pinfo.numSess(pinfo.sn==sn)
-        % pull list of runs from the participant.tsv:
-        run_list = cellfun(@(x) sprintf('%.02d',str2double(x)), split(pinfo.runlist{sn},'.'), 'UniformOutput', false);
+        mean_epi = dir(fullfile(baseDir, imagingDir, subj_id, 'mean*.nii'));
 
-
-        if rtm==0   % if registered to first volume of each run:
-            P{1} = fullfile(baseDir, imagingDir, char(pinfo.subj_id(pinfo.sn==sn)),['mean', prefix,  char(pinfo.subj_id(pinfo.sn==sn)), '_run_', run_list{1}, '.nii']);
-        else        % if registered to mean image of each run:
-            P{1} = fullfile(baseDir, imagingDir, char(pinfo.subj_id(pinfo.sn==sn)),[prefix, 'meanepi_', char(pinfo.subj_id(pinfo.sn==sn)), '.nii']);
-        end
+        P{1} = fullfile(mean_epi.folder, mean_epi.name);
         spmj_bias_correct(P);
-        % end
-
+        
 
     case 'FUNC:coreg'                                                      
         % coregister rbumean image to anatomical image for each session
@@ -497,25 +499,10 @@ switch(what)
         
         % (2) Run automated co-registration to register bias-corrected meanimage to anatomical image
         
-        % pull list of runs from the participant.tsv:
-        run_list = cellfun(@(x) sprintf('%.02d',str2double(x)), split(pinfo.runlist{sn},'.'), 'UniformOutput', false);
+        mean_epi = dir(fullfile(baseDir,imagingDir,subj_id,['bmean' prefix, subj_id '_run_*.nii']));
 
-
-        if rtm==0   % if registered to first volume
-            % when you run realign and unwarp separately
-            mean_file_name = sprintf('rbmean%s%s_run_%s.nii', prefix, char(pinfo.subj_id(pinfo.sn==sn)), run_list{1}); 
-            % when you run realign and unwarp simultaneously (after FUNC:realign_unwarp)
-%           mean_fie_name = sprintf('bmean%s%s_run_%s.nii', prefix, char(pinfo.subj_id(pinfo.sn==sn)), run_list_cell{1});
-
-        else    % if registered to the mean image
-            % when you run realign and unwarp separately
-            mean_file_name = sprintf('rb%smeanepi_%s.nii', prefix, char(pinfo.subj_id(pinfo.sn==sn)));
-            % when you run realign and unwarp simultaneously (after FUNC:realign_unwarp)
-%             mean_file_name = sprintf('b%smeanepi_%s.nii', prefix, char(pinfo.subj_id(pinfo.sn==sn)));
-
-        end
-        J.source = {fullfile(baseDir,imagingDir,char(pinfo.subj_id(pinfo.sn==sn)),mean_file_name)}; 
-        J.ref = {fullfile(baseDir,anatomicalDir,char(pinfo.subj_id(pinfo.sn==sn)),[char(pinfo.subj_id(pinfo.sn==sn)), '_anatomical','.nii'])};
+        J.source = {fullfile(mean_epi.folder, mean_epi.name)}; 
+        J.ref = {fullfile(baseDir,anatomicalDir,subj_id,[subj_id '_anatomical' '.nii'])};
         J.other = {''};
         % J.eoptions.cost_fun = 'ncc';
         J.eoptions.cost_fun = 'nmi';
@@ -526,9 +513,7 @@ switch(what)
         matlabbatch{1}.spm.spatial.coreg.estimate=J;
         spm_jobman('run',matlabbatch);
         
-        % (3) Check alignment manually by using fsleyes similar to step
-        % one.
-        % end
+
     case 'FUNC:make_samealign'
         % align to registered bias corrected mean image of each session
         % (rb*mean*.nii). Alignment happens only by changing the transform

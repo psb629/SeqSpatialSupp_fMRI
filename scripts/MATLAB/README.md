@@ -1,17 +1,51 @@
-drwxr-xr-x   17 sungbeenpark  staff    544 May  9 12:28 .
-drwxr-xr-x   28 sungbeenpark  staff    896 May  9 12:28 ..
--rw-r--r--@   1 sungbeenpark  staff   6148 May  8 16:44 .DS_Store
-drwxr-xr-x    4 sungbeenpark  staff    128 May  8 12:15 GLM
--rw-r--r--    1 sungbeenpark  staff    115 May  9 12:28 README.md
-drwxr-xr-x   12 sungbeenpark  staff    384 May  8 12:15 dataframe
-drwxr-xr-x  177 sungbeenpark  staff   5664 May  8 12:15 freesurfer
--rw-r--r--    1 sungbeenpark  staff    159 May  8 12:15 get_id.m
-drwxr-xr-x   12 sungbeenpark  staff    384 May  8 12:15 hrf
-drwxr-xr-x    4 sungbeenpark  staff    128 May  8 12:15 imaging
-drwxr-xr-x    6 sungbeenpark  staff    192 May  8 12:15 preproc
-drwxr-xr-x  979 sungbeenpark  staff  31328 May  8 12:15 spm
-drwxr-xr-x   21 sungbeenpark  staff    672 May  8 15:44 spmj_tools
--rw-r--r--@   1 sungbeenpark  staff   1238 May  8 17:02 sss_init.m
-drwxr-xr-x   19 sungbeenpark  staff    608 May  8 12:15 surfAnalysis
-drwxr-xr-x   48 sungbeenpark  staff   1536 May  8 12:15 surfing
-drwxr-xr-x   31 sungbeenpark  staff    992 May  8 12:15 tmp
+# Region: Lightweight and simple Region toolbox for Matlab/SPM
+
+## Puropose
+
+1. Find appropriate HRF parameters for each ROI.
+2. Utilize CifTi
+
+## Function
+
+1. `region`: creates region structure
+2. `region_calcregion`: calculates the locations in regions and stores them as R.data
+3. `region_getdata`: gets the values from a series of Image files for a series of regions
+4. `region_getts`: gets Raw, predicted, adjusted and residual time series from series of regions
+```
+for rr = [1:8]
+	idx = SPM.xX.K(rr).row;
+	k = SPM.xX.K(rr).X0;
+	w = SPM.xX.W(idx,idx);
+	y_filt(idx,1) = w*y_raw(idx,1) - k*k'*w*y_raw(idx,1);
+end
+
+B = SPM.xX.pKX*y_filt;
+y_hat = SPM.xX.xKXs.X(:,idx_interest)*B(idx_interest,:);
+y_res = spm_sp('r', SPM.xX.xKXs, y_filt);
+y_adj = y_hat + y_res;
+```
+5. `region_getirf`: extracts the ts (using `getts`) and gets evoked response for all events
+6. `region_saveasimg`: saves a certain region as an image
+7. `region_deformation`: deforms regions into individual space over a non-linear transformation
+
+## Example of usage
+
+1. make `ROIs.gii` file
+```
+sss_hrf('ROI:findall')
+```
+
+2. make `SubjID_Task_regions.glm_??.mat` file (using `region_calcregion` function)
+```
+sss_hrf('ROI:redefine')
+```
+
+3. (Using `region_getts` function)
+```
+sss_hrf('HRF:ROI_hrf_get')
+```
+
+4. (Using `region_getdata` and `spmj_fit_hrfparams` function)
+```
+sss_hrf('HRF:fit')
+```
