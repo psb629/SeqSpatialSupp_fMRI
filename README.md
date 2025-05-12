@@ -44,16 +44,21 @@ sss_GLM('GLM:all','sn',<subject number>,'glm',<GLM number>)
 
 i) GLM = 2: Repetition
 
-|  | trial $_{t-1}$ | trial $_{t}$ |
+|  | trial ${}_{t-1}$ | trial ${}_{t}$ |
 |---------|---------|---------|
 | Both-Rep| $(i,j)$ | $(i,j)$ |
 | Cue-Rep | $(i,\neg j)$ | $(i,j)$ |
 | Seq-Rep | $(\neg i,j)$ | $(i,j)$ |
 | NRep    | $(\neg i,\neg j)$ | $(i,j)$ |
 
-$ trial state: (i,j) $
-$ j=0: Letter $, $ j=1: Spatial $
-$ i=0: 32451 $, $ i=1: 35124 $, $i=2: 13254 $, $ i=3: 14523$
+trial state: $ (i,j) $
+
+- i=0: 32451
+- i=1: 35124
+- i=2: 13254
+- i=3: 14523$
+- j=0: Letter
+- j=1: Spatial
 
 ii) GLM = 3: Trial State
 
