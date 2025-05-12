@@ -56,6 +56,16 @@ sss_GLM('GLM:all','sn',<subject number>,'glm',<GLM number>)
 
 ### GLM number
 
+Index (i,j)
+- Sequence
+	- i=0: 32451
+	- i=1: 35124
+	- i=2: 13254
+	- i=3: 14523
+- Cue
+	- j=0: Letter
+	- j=1: Spatial
+
 i) GLM = 2: Repetition
 
 |  | trial $t-1$ | trial $t$ |
@@ -77,10 +87,11 @@ i) GLM = 2: Repetition
 |(3,1)|     |     |     |     |     |     |     |  B  |
 
 ii) GLM = 3: Trial State (i,j)
-
-- i=0: 32451
-- i=1: 35124
-- i=2: 13254
-- i=3: 14523
-- j=0: Letter
-- j=1: Spatial
+- 1: (0,0)
+- 2: (0,1)
+- 3: (1,0)
+- 4: (1,1)
+- 5: (2,0)
+- 6: (2,1)
+- 7: (3,0)
+- 8: (3,1)
