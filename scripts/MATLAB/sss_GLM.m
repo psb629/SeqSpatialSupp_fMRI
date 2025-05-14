@@ -2,9 +2,10 @@ function varargout = sss_GLM(what,varargin)
 
 if ispc
     cd '\\wsl.localhost/ubuntu-22.04/home/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
-    sss_init;
+elseif ismac
+    cd '/Users/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
 end
-
+sss_init;
 %% Scanner
 TR = 1;
 numDummys  = 8;  % dummy images at the start of each run (these are discarded)
@@ -117,8 +118,8 @@ switch(what)
             % Setup scans for current session
             N = {};
             for i=1:nTRs(r)
-                N{i} = fullfile(baseDir,imagingDir,subj_id,[prefix sprintf('%s_run_%02d.nii,%d',subj_id,r,i)]);
-            end                
+                N{i} = fullfile(baseDir,imagingDir,subj_id,sprintf('%s_run_%02d.nii,%d',subj_id,r,i));
+            end
             J.sess(r).scans= N;
 
             % Setup names for conditions
