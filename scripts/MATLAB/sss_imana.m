@@ -487,7 +487,6 @@ prefix = 'u';  % Unwarped
         if subj_id(1)=='S'
             J.ref = {fullfile(baseDir,anatomicalDir,S_id,[S_id '_anatomical' '.nii'])};
         elseif subj_id(1)=='R'
-            R_id = strrep(subj_id,'S','R');
             J.ref = {fullfile(baseDir,imagingDir,S_id,['rbmean' prefix S_id '_run_01.nii'])};
         end
         J.other = {''};
