@@ -57,18 +57,21 @@ prefix = 'u';  % Unwarped
         sss_imana('ANAT:reslice_LPI');
         %  after this step, find the AC coordinate and enter it into
         %  participants.tsv
-
-        fprintf('Manually align the mean bias corrected image and the anatomical\n')
     
-    case 'PREP:FUNC-pre'           
+    case 'PREP:ANAT-post'
+        for s = sn
+            fprintf('anatomical preprocessing for %s...\n',subj_id);
+            % ANAT functions:
+            sss_imana('ANAT:centre_AC','sn',s);
+            sss_imana('ANAT:segmentation','sn',s);
+        end
+
+    case 'PREP:FUNC-pre'
         % All preprocessing steps by just one go (AC coordinates (loc_AC) are prerequisite)
   
         % loop on subjects and preprocessing the data:
         for s = sn
-            % ANAT functions:
-            sss_imana('ANAT:centre_AC','sn',s);
-            sss_imana('ANAT:segmentation','sn',s);
-            
+            fprintf('functional preprocessing for %s...\n',subj_id);
             % FUNC functions:
             sss_imana('FUNC:make_fmap','sn',s);
             sss_imana('FUNC:realign_unwarp','sn',s,'rtm',rtm);
@@ -82,12 +85,13 @@ prefix = 'u';  % Unwarped
     case 'PREP:FUNC-post'
         % loop on subjects and preprocessing the data:
         for s = sn
+            fprintf('functional preprocessing for %s...\n',subj_id);
             % FUNC:
             sss_imana('FUNC:coreg','sn',s);
             sss_imana('FUNC:make_samealign','sn',s);
             sss_imana('FUNC:make_maskImage','sn',s);
+            % sss_imana('FUNC:reslice_R_to_S','sn',s);
         end
-
 
     case 'BIDS:move_unzip_raw_anat'
         % Moves, unzips and renames raw functional (BOLD) images from 
@@ -95,10 +99,10 @@ prefix = 'u';  % Unwarped
         % nRuns Nifti files named <subj_id>_run_XX.nii in the 
         % <project_id>/imaging_data_raw/<subj_id>/ directory.
 
-        fname_raw = fullfile(baseDir, BIDSDir,['sub-' subj_id], 'anat', [char(pinfo.AnatRawName(pinfo.sn==sn)) '.nii.gz']);
+        fname_raw = fullfile(baseDir, BIDSDir,['sub-' S_id], 'anat', [char(pinfo.AnatRawName(pinfo.sn==sn)) '.nii.gz']);
 
-        dir_output = fullfile(baseDir,anatomicalDir,subj_id);
-        fname_output = fullfile(dir_output,[subj_id '_anatomical_raw.nii.gz']);
+        dir_output = fullfile(baseDir,anatomicalDir,S_id);
+        fname_output = fullfile(dir_output,[S_id '_anatomical_raw.nii.gz']);
 
         if ~exist(dir_output,"dir")
             mkdir(dir_output);
@@ -216,8 +220,8 @@ prefix = 'u';  % Unwarped
         % handling input args:
 
         % (1) Reslice anatomical image to set it within LPI co-ordinate frames
-        source = fullfile(baseDir,anatomicalDir,subj_id,[subj_id '_anatomical_raw.nii']);
-        dest = fullfile(baseDir,anatomicalDir,subj_id,[subj_id '_anatomical.nii']);
+        source = fullfile(baseDir,anatomicalDir,S_id,[S_id '_anatomical_raw.nii']);
+        dest = fullfile(baseDir,anatomicalDir,S_id,[S_id '_anatomical.nii']);
         spmj_reslice_LPI(source,'name', dest);
         
         % (2) In the resliced image, set translation to zero (why?)
@@ -240,7 +244,7 @@ prefix = 'u';  % Unwarped
         % This function runs for all subjects and sessions.
 
         % path to the raw anatomical:
-        anat_raw_file = fullfile(baseDir,anatomicalDir,subj_id,[subj_id '_anatomical.nii']);
+        anat_raw_file = fullfile(baseDir,anatomicalDir,S_id,[S_id '_anatomical.nii']);
         if ~exist(anat_raw_file,"file")
             error('ANAT:centre_AC -> file %s was not found.',anat_raw_file)
         end
@@ -277,7 +281,7 @@ prefix = 'u';  % Unwarped
         SPMhome=fileparts(which('spm.m'));
         J=[];
         for s=sn
-            J.channel.vols = {fullfile(baseDir,anatomicalDir,subj_id,[subj_id '_anatomical.nii,1'])};
+            J.channel.vols = {fullfile(baseDir,anatomicalDir,S_id,[S_id '_anatomical.nii,1'])};
             J.channel.biasreg = 0.001;
             J.channel.biasfwhm = 60;
             J.channel.write = [0 0];
@@ -457,10 +461,6 @@ prefix = 'u';  % Unwarped
         
 
     case 'FUNC:coreg'                                                      
-        % coregister rbumean image to anatomical image for each session
-         
-        % loop on sessions:
-        % for sess = 1:pinfo.numSess(pinfo.sn==sn)
         % (1) Manually seed the functional/anatomical registration
         % - Open fsleyes
         % - Add anatomical image and b*mean*.nii (bias corrected mean) image to overlay
@@ -479,12 +479,12 @@ prefix = 'u';  % Unwarped
         %   a .nii.gz so either set it or gunzip afterwards to make it
         %   compatible with SPM.
         
-        % (2) Run automated co-registration to register bias-corrected meanimage to anatomical image
-        
+        % (2) Run automated co-registration to register bias-corrected meanimage
+        % (bmean*.nii) to anatomical image using rbmean*.nii
         mean_epi = dir(fullfile(baseDir,imagingDir,subj_id,['bmean' prefix, subj_id '_run_*.nii']));
 
         J.source = {fullfile(mean_epi.folder, mean_epi.name)}; 
-        J.ref = {fullfile(baseDir,anatomicalDir,subj_id,[subj_id '_anatomical' '.nii'])};
+        J.ref = {fullfile(baseDir,anatomicalDir,S_id,[S_id '_anatomical' '.nii'])};
         J.other = {''};
         % J.eoptions.cost_fun = 'ncc';
         J.eoptions.cost_fun = 'nmi';
@@ -546,24 +546,24 @@ prefix = 'u';  % Unwarped
         else
             nam{1} = fullfile(baseDir,imagingDir,subj_id,['rb' prefix 'meanepi_' subj_id '.nii']);
         end
-        nam{2}  = fullfile(baseDir, anatomicalDir, subj_id, ['c1' subj_id, '_anatomical.nii']);
-        nam{3}  = fullfile(baseDir, anatomicalDir, subj_id, ['c2' subj_id, '_anatomical.nii']);
-        nam{4}  = fullfile(baseDir, anatomicalDir, subj_id, ['c3' subj_id, '_anatomical.nii']);
+        nam{2}  = fullfile(baseDir, anatomicalDir, S_id, ['c1' S_id, '_anatomical.nii']);
+        nam{3}  = fullfile(baseDir, anatomicalDir, S_id, ['c2' S_id, '_anatomical.nii']);
+        nam{4}  = fullfile(baseDir, anatomicalDir, S_id, ['c3' S_id, '_anatomical.nii']);
         spm_imcalc(nam, fullfile(baseDir,imagingDir,subj_id,'rmask_noskull.nii'), 'i1>1 & (i2+i3+i4)>0.2')
         
         source = fullfile(baseDir,imagingDir,subj_id, 'rmask_noskull.nii');
-        dest = fullfile(baseDir,anatomicalDir,subj_id, 'rmask_noskull.nii');
+        dest = fullfile(baseDir,anatomicalDir,S_id, 'rmask_noskull.nii');
         movefile(source,dest);
         
         % gray matter mask for covariance estimation
         % ------------------------------------------
         nam={};
         nam{1}  = fullfile(baseDir, imagingDir,subj_id, ['rbmean' prefix subj_id '_run_' run_list{1} '.nii']);
-        nam{2}  = fullfile(baseDir, anatomicalDir, subj_id, ['c1' subj_id, '_anatomical.nii']);
+        nam{2}  = fullfile(baseDir, anatomicalDir, S_id, ['c1' S_id, '_anatomical.nii']);
         spm_imcalc(nam, fullfile(baseDir,imagingDir,subj_id,'rmask_gray.nii'), 'i1>1 & i2>0.4')
         
         source = fullfile(baseDir,imagingDir,subj_id, 'rmask_gray.nii');
-        dest = fullfile(baseDir, anatomicalDir,subj_id,'rmask_gray.nii');
+        dest = fullfile(baseDir, anatomicalDir,S_id,'rmask_gray.nii');
         movefile(source,dest);
         % end
 
@@ -573,12 +573,12 @@ prefix = 'u';  % Unwarped
         if subj_id(1)~='S'
             fprintf(subj_id);
             for run = 1:8
-                VG = fullfile(dir_work,S_id,sprintf('u%s_run_%02d.nii',S_id,run)); VG = spm_vol(VG);
-                VF = fullfile(dir_work,R_id,sprintf('u%s_run_%02d.nii',R_id,run)); VF = spm_vol(VF);
+                VG = fullfile(dir_work,S_id,sprintf('%s_run_%02d.nii',S_id,run)); VG = spm_vol(VG);
+                VF = fullfile(dir_work,R_id,sprintf('%s_run_%02d.nii',R_id,run)); VF = spm_vol(VF);
                 
                 dim = VG.dim;
                 mat = VG.mat;
-                output = fullfile(dir_work,R_id,sprintf('resliced_u%s_run_%02d.nii',R_id,run));
+                output = fullfile(dir_work,R_id,sprintf('resliced_%s_run_%02d.nii',R_id,run));
                 spmj_reslice_vol(VF,dim,mat,output);
             end
         end
