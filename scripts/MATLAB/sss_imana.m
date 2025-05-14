@@ -87,10 +87,10 @@ prefix = 'u';  % Unwarped
         for s = sn
             fprintf('functional preprocessing for %s...\n',subj_id);
             % FUNC:
+            % sss_imana('FUNC:reslice_R_to_S','sn',s);
             sss_imana('FUNC:coreg','sn',s);
             sss_imana('FUNC:make_samealign','sn',s);
             sss_imana('FUNC:make_maskImage','sn',s);
-            % sss_imana('FUNC:reslice_R_to_S','sn',s);
         end
 
     case 'BIDS:move_unzip_raw_anat'
@@ -483,8 +483,13 @@ prefix = 'u';  % Unwarped
         % (bmean*.nii) to anatomical image using rbmean*.nii
         mean_epi = dir(fullfile(baseDir,imagingDir,subj_id,['bmean' prefix, subj_id '_run_*.nii']));
 
-        J.source = {fullfile(mean_epi.folder, mean_epi.name)}; 
-        J.ref = {fullfile(baseDir,anatomicalDir,S_id,[S_id '_anatomical' '.nii'])};
+        J.source = {fullfile(mean_epi.folder, mean_epi.name)};
+        if subj_id(1)=='S'
+            J.ref = {fullfile(baseDir,anatomicalDir,S_id,[S_id '_anatomical' '.nii'])};
+        elseif subj_id(1)=='R'
+            R_id = strrep(subj_id,'S','R');
+            J.ref = {fullfile(baseDir,imagingDir,S_id,['rbmean' prefix S_id '_run_01.nii'])};
+        end
         J.other = {''};
         % J.eoptions.cost_fun = 'ncc';
         J.eoptions.cost_fun = 'nmi';
