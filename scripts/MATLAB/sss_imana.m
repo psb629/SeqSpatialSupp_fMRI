@@ -90,7 +90,9 @@ prefix = 'u';  % Unwarped
             % sss_imana('FUNC:reslice_R_to_S','sn',s);
             sss_imana('FUNC:coreg','sn',s);
             sss_imana('FUNC:make_samealign','sn',s);
-            sss_imana('FUNC:make_maskImage','sn',s);
+            if subj_id(1)=='S'
+                sss_imana('FUNC:make_maskImage','sn',s);
+            end
         end
 
     case 'BIDS:move_unzip_raw_anat'
