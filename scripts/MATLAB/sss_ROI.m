@@ -186,16 +186,21 @@ switch(what)
         % 피험자의 volume 공간으로 매핑한 ROI 마스크를 이용하여 피험자의
         % y_raw 데이터를 voxel 단위로 얻고, 그 결과를 cifti로 저장
 
+        % 피험자의 surface 공간에서 각 ROI의 node (2-D) 정보 
         fname = fullfile(baseDir,roiDir,subj_id,sprintf('%s.Task_regions.mat',subj_id));
         % [R, V] = sss_hrf('ROI:deform','sn',sn,'glm',glm,'LR',LR);
         R = load(fname); R = R.R;
 
-        VolFile = fullfile(baseDir,glmDir,subj_id,'mask.nii');
+        % 피험자 EPI 의 3-D 정보
+        % VolFile = fullfile(baseDir,glmDir,subj_id,'mask.nii');
+        VolFile = R{1,1}.image;
         V = spm_vol(VolFile);
+
         SPM = load(fullfile(baseDir,glmDir,subj_id,'SPM.mat'));
         SPM = SPM.SPM;
 
         fprintf('extrating Y_raw from each ROI for subject %s...\n',subj_id);
+        % R의 정보를 토대로 추출한 2-D y data
         D = region_getdata(SPM.xY.VY,R);
         
         % dir_work = fullfile(baseDir, roiDir, glmDir);
