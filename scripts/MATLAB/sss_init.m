@@ -4,6 +4,7 @@ if ispc
 elseif ismac
     rootDir = '/Volumes/Diedrichsen_data$/data/SeqSpatialSupp_fMRI';
     dir_git = '/Users/sungbeenpark/github';
+    addpath(genpath('/Users/sungbeenpark/SPM')); % nanmean (in surf_vol2surf)
 else
     fprintf('Workdir not found. Mount or connect to server and try again.');
 end

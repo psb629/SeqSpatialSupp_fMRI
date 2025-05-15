@@ -2,8 +2,13 @@ function varargout = sss_ROI(what,varargin)
 
 if ispc
     cd '\\wsl.localhost/ubuntu-22.04/home/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
-    sss_init;
+    dir_atlas = 'F:/Atlas/fs_LR_32';
+elseif ismac
+    cd '/Users/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
+    dir_atlas = '/Volumes/Diedrichsen_data$/data/Atlas_templates/fs_LR_32';
 end
+
+sss_init;
 
 %% argument inputs
 sn = [];
@@ -27,9 +32,9 @@ hname = {'CortexLeft', 'CortexRight'}; % 'CortexLeft', 'CortexRight', 'Cerebellu
 %% MAIN OPERATION 
 switch(what)
     case 'ROI:all'
-        sss_hrf('ROI:calc_region','sn',sn,'glm',glm);
+        sss_ROI('ROI:calc_region','sn',sn,'glm',glm); % https://github.com/DiedrichsenLab/region.git
         % sss_hrf('ROI:deform','sn',sn,'glm',glm);
-        sss_hrf('ROI:make_cifti','sn',sn,'glm',glm);
+        sss_ROI('ROI:make_cifti','sn',sn,'glm',glm); % https://github.com/Washington-University/cifti-matlab.git
 
     % case 'ROI:findall' % use this... %rdm, glm3
     %     % ROI 11개를 모아놓은 ROI.L.SSS.label.gii 파일 만들기
@@ -92,8 +97,6 @@ switch(what)
         %P = (PP.mask'~=0).*P;
 
         %% load Atlas
-        dir_atlas = 'F:/Atlas/fs_LR_32';
-
         atlasH = {'ROI.32k.L.label.gii', 'ROI.32k.R.label.gii'};
         atlas_gii = {gifti(fullfile(dir_atlas, atlasH{1})), gifti(fullfile(dir_atlas, atlasH{2}))};
 
@@ -199,7 +202,7 @@ switch(what)
             name = R{1,i}.name;
             %% y_raw
             cii = region_make_cifti(R{i},V,'data',D{i}','dtype','series','TR',1);
-            fname = fullfile(dir_work,sprintf('cifti.L.glm%d.%s.%s.y_raw.nii',glm,subj_id,name));
+            fname = fullfile(dir_work,sprintf('cifti.L.glm%d.%s.%s.y_raw.dtseries.nii',glm,subj_id,name));
             
             cifti_write(cii, fname);
             
@@ -207,13 +210,13 @@ switch(what)
             [beta, Yhat, Yres] = spmj_glm_fit(SPM,D{i});
             % y_hat
             cii = region_make_cifti(R{i},V,'data',Yhat','dtype','series','TR',1);
-            fname = fullfile(dir_work,sprintf('cifti.L.glm%d.%s.%s.y_hat.nii',glm,subj_id,name));
+            fname = fullfile(dir_work,sprintf('cifti.L.glm%d.%s.%s.y_hat.dtseries.nii',glm,subj_id,name));
             
             cifti_write(cii, fname);
             
             % y_res
             cii = region_make_cifti(R{i},V,'data',Yres','dtype','series','TR',1);
-            fname = fullfile(dir_work,sprintf('cifti.L.glm%d.%s.%s.y_res.nii',glm,subj_id,name));
+            fname = fullfile(dir_work,sprintf('cifti.L.glm%d.%s.%s.y_res.dtseries.nii',glm,subj_id,name));
 
             cifti_write(cii, fname);
         end

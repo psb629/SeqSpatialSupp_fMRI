@@ -2,8 +2,11 @@ function varargout = sss_hrf(what,varargin)
 
 if ispc
     cd '\\wsl.localhost/ubuntu-22.04/home/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
-    sss_init;
+elseif ismac
+    cd '/Users/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
 end
+
+sss_init;
 
 %% HRF parameters
 hrf_params_default = [6 16 1 1 6 0 32];
