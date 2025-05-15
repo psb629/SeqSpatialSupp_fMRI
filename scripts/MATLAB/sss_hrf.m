@@ -40,9 +40,7 @@ hname = {'CortexLeft', 'CortexRight'}; % 'CortexLeft', 'CortexRight', 'Cerebellu
 %% MAIN OPERATION 
 switch(what)
     case 'HRF:all'
-        sss_hrf('ROI:calc_region','sn',sn,'glm',glm);
-        % sss_hrf('ROI:deform','sn',sn,'glm',glm);
-        sss_hrf('ROI:make_cifti','sn',sn,'glm',glm);
+        
 
     case 'HRF:get_mean_ts'
         % ROI 내의 평균 time series를 GLM 모델과 비교하여 출력.
