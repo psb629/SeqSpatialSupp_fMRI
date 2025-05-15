@@ -484,8 +484,8 @@ prefix = 'u';  % Unwarped
         
         % (2) Run automated co-registration to register bias-corrected meanimage
         % (bmean*.nii) to anatomical image using rbmean*.nii
-        mean_epi = dir(fullfile(baseDir,imagingDir,subj_id,['bmean' prefix, subj_id '_run_*.nii']));
-
+        mean_epi = dir(fullfile(baseDir,imagingDir,subj_id,sprintf('rbmean%s%s_run_*.nii',prefix,subj_id)));
+        
         % cost_fun - cost function string:
             % 'mi'  - Mutual Information
             % 'nmi' - Normalised Mutual Information
@@ -496,7 +496,7 @@ prefix = 'u';  % Unwarped
             J.ref = {fullfile(baseDir,anatomicalDir,S_id,[S_id '_anatomical' '.nii'])};
             % J.eoptions.cost_fun = 'nmi';
         elseif subj_id(1)=='R'
-            J.ref = {fullfile(baseDir,imagingDir,S_id,['bmean' prefix S_id '_run_01.nii'])};
+            J.ref = {fullfile(baseDir,imagingDir,S_id,sprintf('rbmean%s%s_run_01.nii',prefix,S_id))};
             % J.eoptions.cost_fun = 'nmi';
         end
         J.other = {''};
@@ -532,14 +532,14 @@ prefix = 'u';  % Unwarped
         % transform matrix of the coregistered image, they will all
         % tranform into the anatomical coordinates space.
 
-        epi_files = dir(fullfile(baseDir,imagingDir,subj_id, [subj_id '_run_*.nii']));
+        epi_files = dir(fullfile(baseDir,imagingDir,subj_id,[subj_id '_run_*.nii']));
         epi_list = {}; % Initialize as an empty cell array
         for run = 1:length(epi_files)
             epi_list{end+1} = fullfile(epi_files(run).folder, epi_files(run).name);
         end
         
         % select the reference image:
-        mean_epi = dir(fullfile(baseDir,imagingDir,subj_id, ['bmean' prefix subj_id '_run_*.nii']));
+        mean_epi = dir(fullfile(baseDir,imagingDir,subj_id,['rbmean' prefix subj_id '_run_*.nii']));
         P{1} = fullfile(mean_epi.folder, mean_epi.name);
         
         % select images to be realigned:
@@ -561,14 +561,10 @@ prefix = 'u';  % Unwarped
         run_list = cellfun(@(x) sprintf('%.02d',str2double(x)), split(pinfo.runlist{sn},'.'), 'UniformOutput', false);
 
         % bias corrected mean epi image:
-        if rtm==0
-            nam{1} = fullfile(baseDir,imagingDir,subj_id,['rb' 'mean' prefix subj_id '_run_' run_list{1} '.nii']);
-        else
-            nam{1} = fullfile(baseDir,imagingDir,subj_id,['rb' prefix 'meanepi_' subj_id '.nii']);
-        end
-        nam{2}  = fullfile(baseDir, anatomicalDir, S_id, ['c1' S_id, '_anatomical.nii']);
-        nam{3}  = fullfile(baseDir, anatomicalDir, S_id, ['c2' S_id, '_anatomical.nii']);
-        nam{4}  = fullfile(baseDir, anatomicalDir, S_id, ['c3' S_id, '_anatomical.nii']);
+        nam{1} = fullfile(baseDir, imagingDir, subj_id,['rbmean' prefix subj_id '_run_' run_list{1} '.nii']);
+        nam{2} = fullfile(baseDir, anatomicalDir, S_id, ['c1' S_id, '_anatomical.nii']);
+        nam{3} = fullfile(baseDir, anatomicalDir, S_id, ['c2' S_id, '_anatomical.nii']);
+        nam{4} = fullfile(baseDir, anatomicalDir, S_id, ['c3' S_id, '_anatomical.nii']);
         spm_imcalc(nam, fullfile(baseDir,imagingDir,subj_id,'rmask_noskull.nii'), 'i1>1 & (i2+i3+i4)>0.2')
         
         source = fullfile(baseDir,imagingDir,subj_id, 'rmask_noskull.nii');
