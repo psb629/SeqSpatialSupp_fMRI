@@ -58,7 +58,7 @@ switch(what)
 
         sss_GLM('GLM:design','sn',sn,'glm',glm,'nTRs',nTRs,'hrf_params',hrf_params);
         sss_GLM('GLM:estimate','sn',sn,'glm',glm);
-        sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map',map);
+        sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map',map); % https://github.com/nno/surfing.git
         
     case 'GLM:design'
         %% dependency:

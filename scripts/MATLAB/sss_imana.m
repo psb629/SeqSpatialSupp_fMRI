@@ -73,7 +73,7 @@ prefix = 'u';  % Unwarped
         for s = sn
             fprintf('functional preprocessing for %s...\n',subj_id);
             % FUNC functions:
-            sss_imana('FUNC:make_fmap','sn',s);
+            % sss_imana('FUNC:make_fmap','sn',s);
             sss_imana('FUNC:realign_unwarp','sn',s,'rtm',rtm);
             sss_imana('FUNC:move_realigned_images','sn',s);
             sss_imana('FUNC:meanimage_bias_correction','sn',s);
