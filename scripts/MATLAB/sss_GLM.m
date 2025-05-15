@@ -119,12 +119,6 @@ switch(what)
             N = {};
             for i=1:nTRs(r)
                 N{i} = fullfile(baseDir,imagingDir,subj_id,sprintf('%s_run_%02d.nii,%d',subj_id,r,i));
-                % if subj_id(1)=='S'
-                %     fname = [sprintf('%s_run_%02d.nii',subj_id,r) ',%d'];
-                % elseif subj_id(1)=='R'
-                %     fname = [sprintf('resliced_%s_run_%02d.nii',subj_id,r) ',%d'];
-                % end
-                % N{i} = fullfile(baseDir,imagingDir,subj_id,sprintf(fname,i));
             end
             J.sess(r).scans= N;
 
@@ -622,7 +616,7 @@ switch(what)
         % end
 
     case 'WB:vol2surf' % map indiv vol contrasts (.nii) onto surface (.gii)
-        dir_work = fullfile(baseDir,wbDir,glmDir,subj_id);
+        dir_work = fullfile(baseDir,wbDir,glmDir);
         if (~exist(dir_work,'dir'))
             mkdir(dir_work);
         end
