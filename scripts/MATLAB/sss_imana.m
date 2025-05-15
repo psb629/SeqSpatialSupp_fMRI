@@ -87,11 +87,12 @@ prefix = 'u';  % Unwarped
         for s = sn
             fprintf('functional preprocessing for %s...\n',subj_id);
             % FUNC:
-            % sss_imana('FUNC:reslice_R_to_S','sn',s);
             sss_imana('FUNC:coreg','sn',s);
             sss_imana('FUNC:make_samealign','sn',s);
             if subj_id(1)=='S'
                 sss_imana('FUNC:make_maskImage','sn',s);
+            elseif subj_id(1)=='R'
+                sss_imana('FUNC:reslice_R_to_S','sn',s);
             end
         end
 
@@ -590,15 +591,25 @@ prefix = 'u';  % Unwarped
         R_id = strrep(subj_id,'S','R');
         dir_work = fullfile(baseDir,imagingDir);
         if subj_id(1)~='S'
-            fprintf(subj_id);
+            fprintf('reslicing EPIs of %s into %s space: \n',subj_id,S_id);
             for run = 1:8
+                fprintf('Run %02d: ',run);
+
+                % Reference Image
                 VG = fullfile(dir_work,S_id,sprintf('%s_run_%02d.nii',S_id,run)); VG = spm_vol(VG);
-                VF = fullfile(dir_work,R_id,sprintf('%s_run_%02d.nii',R_id,run)); VF = spm_vol(VF);
+                
+                % Source Image
+                orig = fullfile(dir_work,R_id,sprintf('%s_run_%02d.nii',R_id,run)); VF = spm_vol(orig);
                 
                 dim = VG.dim;
                 mat = VG.mat;
-                output = fullfile(dir_work,R_id,sprintf('resliced_%s_run_%02d.nii',R_id,run));
-                spmj_reslice_vol(VF,dim,mat,output);
+
+                tmp = fullfile(dir_work,R_id,sprintf('tmp%s_run_%02d.nii',R_id,run));
+                spmj_reslice_vol(VF,dim,mat,tmp);
+
+                % replace the new image as the final data
+                delete(orig);
+                movefile(tmp,orig);
             end
         end
     end
