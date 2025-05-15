@@ -12,7 +12,7 @@ sss_init;
 
 %% argument inputs
 sn = [];
-glm = [];
+glm = 3;
 vararginoptions(varargin,{'sn','glm'});
 if isempty(sn)
     error('''sn'' must be passed to this function.')
@@ -32,9 +32,11 @@ hname = {'CortexLeft', 'CortexRight'}; % 'CortexLeft', 'CortexRight', 'Cerebellu
 %% MAIN OPERATION 
 switch(what)
     case 'ROI:all'
-        sss_ROI('ROI:calc_region','sn',sn,'glm',glm); % https://github.com/DiedrichsenLab/region.git
+        if subj_id(1)=='S'
+            sss_ROI('ROI:calc_region','sn',sn); % https://github.com/DiedrichsenLab/region.git
+        end
         % sss_hrf('ROI:deform','sn',sn,'glm',glm);
-        sss_ROI('ROI:make_cifti','sn',sn,'glm',glm); % https://github.com/Washington-University/cifti-matlab.git
+        sss_ROI('ROI:make_cifti.y_raw','sn',sn); % https://github.com/Washington-University/cifti-matlab.git
 
     % case 'ROI:findall' % use this... %rdm, glm3
     %     % ROI 11개를 모아놓은 ROI.L.SSS.label.gii 파일 만들기
@@ -126,16 +128,17 @@ switch(what)
                 R{idx}.location = find(atlas_gii{h}.cdata==key);
                 idx = idx+1;
             end
-        
         overlap = [1 2; 1 3; 1 4; 3 4; 7 8; 1 7];
         end
+
+        % calculates the locations for regions of interest
         R = region_calcregions(R, 'exclude', [overlap; overlap+8], 'exclude_thres', .8);
 
-        dir_work = fullfile(baseDir,roiDir,glmDir,subj_id);
+        dir_work = fullfile(baseDir,roiDir,subj_id);
         if (~exist(dir_work,'dir'))
             mkdir(dir_work);
         end
-        fname=fullfile(dir_work,sprintf('%s.Task_regions.glm%d.mat',subj_id,glm));
+        fname=fullfile(dir_work,sprintf('%s.Task_regions.mat',subj_id));
         %fname=fullfile(baseDir,roiDir,sprintf('%s_SSS_regions.mat',sprintf('S%02d',sn)));
 
         %% save R
@@ -144,7 +147,7 @@ switch(what)
         %% save R as an image file (Is it same as the deformation?)
         for r = 1:length(R)
             img = region_saveasimg(R{r}, Vol, 'name', ...
-                fullfile(dir_work, sprintf('ROI.%s.glm%d.%s.%s.nii',R{r}.hem,glm,subj_id,R{r}.name)));
+                fullfile(dir_work, sprintf('ROI.%s.%s.%s.nii',R{r}.hem,subj_id,R{r}.name)));
         end
 
         fprintf('\nROIs have been defined for %s \n',subj_id);
@@ -152,7 +155,7 @@ switch(what)
 
     case 'ROI:deform'
         % 피험자의 공간에 매핑된 ROI.gii(surface)들을 다시 피험자의 Volume에 매핑
-        fprintf('Deformation for %s...',subj_id);
+        fprintf('Deformation for %s...\n',subj_id);
 
         % workDir = fullfile(baseDir,roiDir);
         % fname = fullfile(workDir,sprintf('%s_Task_regions.glm_%d.mat',subj_id,glm));
@@ -179,46 +182,53 @@ switch(what)
             region_saveasimg(R1{i}, VolFile);
         end
 
-    case 'ROI:make_cifti'
+    case 'ROI:make_cifti.y_raw'
         % 피험자의 volume 공간으로 매핑한 ROI 마스크를 이용하여 피험자의
         % y_raw 데이터를 voxel 단위로 얻고, 그 결과를 cifti로 저장
 
-        fname = fullfile(baseDir,roiDir,glmDir,subj_id,sprintf('%s.Task_regions.glm%d.mat',subj_id,glm));
+        fname = fullfile(baseDir,roiDir,subj_id,sprintf('%s.Task_regions.mat',subj_id));
         % [R, V] = sss_hrf('ROI:deform','sn',sn,'glm',glm,'LR',LR);
         R = load(fname); R = R.R;
 
-        dir_glm = fullfile(baseDir,glmDir,subj_id);
-        VolFile = fullfile(dir_glm,'mask.nii');
+        VolFile = fullfile(baseDir,glmDir,subj_id,'mask.nii');
         V = spm_vol(VolFile);
-        SPM = load(fullfile(dir_glm,'SPM.mat'));
+        SPM = load(fullfile(baseDir,glmDir,subj_id,'SPM.mat'));
         SPM = SPM.SPM;
-        
-        fprintf('Extration Y_raw for each ROI...');
+
+        fprintf('extrating Y_raw from each ROI for subject %s...\n',subj_id);
         D = region_getdata(SPM.xY.VY,R);
         
-        dir_work = fullfile(baseDir,wbDir,glmDir,subj_id);
-        % cii = {};
+        % dir_work = fullfile(baseDir, roiDir, glmDir);
+        % if ~exist(dir_work,'dir')
+        %     mkdir(dir_work);
+        % end
+
+        % length(D) = the number of ROIs (Left/Right)
         for i = 1:length(D)
             name = R{1,i}.name;
-            %% y_raw
-            cii = region_make_cifti(R{i},V,'data',D{i}','dtype','series','TR',1);
-            fname = fullfile(dir_work,sprintf('cifti.L.glm%d.%s.%s.y_raw.dtseries.nii',glm,subj_id,name));
-            
-            cifti_write(cii, fname);
-            
-            %% others
-            [beta, Yhat, Yres] = spmj_glm_fit(SPM,D{i});
-            % y_hat
-            cii = region_make_cifti(R{i},V,'data',Yhat','dtype','series','TR',1);
-            fname = fullfile(dir_work,sprintf('cifti.L.glm%d.%s.%s.y_hat.dtseries.nii',glm,subj_id,name));
-            
-            cifti_write(cii, fname);
-            
-            % y_res
-            cii = region_make_cifti(R{i},V,'data',Yres','dtype','series','TR',1);
-            fname = fullfile(dir_work,sprintf('cifti.L.glm%d.%s.%s.y_res.dtseries.nii',glm,subj_id,name));
+            hemisphere = R{1,i}.hem;
 
-            cifti_write(cii, fname);
+            %% y_raw
+            fname = fullfile(baseDir,roiDir,subj_id,sprintf('cifti.%s.%s.%s.y_raw.dtseries.nii',hemisphere,subj_id,name));
+            if ~exist(fname,'file')
+                cii = region_make_cifti(R{i},V,'data',D{i}','dtype','series','TR',1);
+                cifti_write(cii, fname);
+            end
+            
+            % %% others
+            % [beta, Yhat, Yres] = spmj_glm_fit(SPM,D{i});
+            % 
+            % % y_hat
+            % cii = region_make_cifti(R{i},V,'data',Yhat','dtype','series','TR',1);
+            % fname = fullfile(dir_work, sprintf('cifti.%s.glm%d.%s.%s.y_hat.dtseries.nii',hemisphere,glm,subj_id,name));
+            % 
+            % cifti_write(cii, fname);
+            % 
+            % % y_res
+            % cii = region_make_cifti(R{i},V,'data',Yres','dtype','series','TR',1);
+            % fname = fullfile(dir_work, sprintf('cifti.%s.glm%d.%s.%s.y_res.dtseries.nii',hemisphere,glm,subj_id,name));
+            % 
+            % cifti_write(cii, fname);
         end
 
 end
