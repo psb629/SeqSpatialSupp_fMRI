@@ -405,7 +405,7 @@ prefix = 'u';  % Unwarped
             % move to destination:
             fprintf('moving and renaming imaging_data_raw/%s --> imaging_data/%s\n',realigned_epi_files(run).name,out_name)
             [status,msg] = copyfile(source,dest);
-            if ~status  
+            if ~status
                 error('FUNC:move_realigned_images -> %s',msg)
             end
 
@@ -485,19 +485,32 @@ prefix = 'u';  % Unwarped
         % (bmean*.nii) to anatomical image using rbmean*.nii
         mean_epi = dir(fullfile(baseDir,imagingDir,subj_id,['bmean' prefix, subj_id '_run_*.nii']));
 
+        % cost_fun - cost function string:
+            % 'mi'  - Mutual Information
+            % 'nmi' - Normalised Mutual Information
+            % 'ecc' - Entropy Correlation Coefficient
+            % 'ncc' - Normalised Cross Correlation
         J.source = {fullfile(mean_epi.folder, mean_epi.name)};
         if subj_id(1)=='S'
             J.ref = {fullfile(baseDir,anatomicalDir,S_id,[S_id '_anatomical' '.nii'])};
+            % J.eoptions.cost_fun = 'nmi';
         elseif subj_id(1)=='R'
             J.ref = {fullfile(baseDir,imagingDir,S_id,['bmean' prefix S_id '_run_01.nii'])};
+            % J.eoptions.cost_fun = 'nmi';
         end
         J.other = {''};
         % J.eoptions.cost_fun = 'ncc';
         J.eoptions.cost_fun = 'nmi';
 
+        % optimisation sampling steps (mm), defualt: [4 2]
         J.eoptions.sep = [4 2];
+
+        % tolerences for accuracy of each param, default: [0.02 0.02 0.02 0.001 0.001 0.001]
         J.eoptions.tol = [0.02 0.02 0.02 0.001 0.001 0.001 0.01 0.01 0.01 0.001 0.001 0.001];
+
+        % smoothing to apply to 256x256 joint histogram, default: [7 7]
         J.eoptions.fwhm = [7 7];
+
         matlabbatch{1}.spm.spatial.coreg.estimate=J;
         spm_jobman('run',matlabbatch);
         
