@@ -599,7 +599,7 @@ switch(what)
         end
 
         %% load SPM.mat (GLM information)
-        SPM = load(fullfile(baseDir,'glm_3',subj_id,'SPM.mat'));
+        SPM = load(fullfile(baseDir,glmDir,subj_id,'SPM.mat'));
         SPM = SPM.SPM;
 
         %% Get the hemodynamic response in micro-time resolution
@@ -650,22 +650,53 @@ switch(what)
             %% y_hat
             cii = region_make_cifti(R{i},V,'data',Yhat','dtype','series','TR',1);
             fname = fullfile(dir_output, sprintf('cifti.%s.%s.%s.%s.%s.y_hat.dtseries.nii',hemisphere,glmDir,params,subj_id,roi));
-
             cifti_write(cii, fname);
+            clear cii
 
             %% y_res
             cii = region_make_cifti(R{i},V,'data',Yres','dtype','series','TR',1);
             fname = fullfile(dir_output, sprintf('cifti.%s.%s.%s.%s.%s.y_res.dtseries.nii',hemisphere,glmDir,params,subj_id,roi));
             cifti_write(cii, fname);
+            clear cii
 
             %% beta
-            cii = region_make_cifti(R{i},V,'data',beta','dtype','scalars','TR',1);
+            cii = region_make_cifti(R{i},V,'data',beta(SPM.xX.iC,:)','dtype','scalars','TR',1);
             fname = fullfile(dir_output, sprintf('cifti.%s.%s.%s.%s.%s.beta.dscalar.nii',hemisphere,glmDir,params,subj_id,roi));
             cifti_write(cii, fname);
+            clear cii
         end
         xBF = SPM.xBF;
         save(fullfile(dir_output,sprintf('xBF_%s.mat',params)),'xBF','-v7.3');
-    
+
+        %% save vector information
+        % column head
+        tmp = {};
+        for run=1:length(SPM.Sess)
+            tmp = cat(2,tmp,SPM.Sess(run).U(:).name);
+        end
+        vectors = tmp;
+        
+        for run=1:length(SPM.Sess)
+            cols = SPM.Sess(run).col;
+            % partition vector
+            vectors(2,cols) = {run};
+
+            for col=cols
+                idx = mod(col,length(cols));
+                if idx==0
+                    idx = idx+length(cols);
+                end
+                % condition vector
+                tmp = cellfun(@(x) sscanf(x,'Trial-State %d'), SPM.Sess(run).U(idx).name, 'UniformOutput', false);
+                if ~isempty(tmp{1})
+                    vectors(3,col) = tmp;
+                else
+                    vectors(3,col) = {0};
+                end
+            end
+        end
+        save(fullfile(dir_output,sprintf('vec_%s.mat',params)),'vectors','-v7.3');
+        
     case 'MNI:norm_write'
         vararginoptions(varargin, {'sn','glm'}); %% 
         groupDir = fullfile(baseDir,sprintf('glm_%d',glm),'group');
