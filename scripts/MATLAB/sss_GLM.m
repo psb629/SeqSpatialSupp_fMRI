@@ -589,6 +589,82 @@ switch(what)
 
         fprintf('Subject %s - Done\n', subj_id);
 
+    case 'GLM:HRF_tuner'
+        %% HRF tunning
+        params = mat2str(hrf_params(1:2));
+        fprintf('GLM:HRF_tuner - %s %s\n',subj_id,params);
+        dir_output = fullfile(baseDir,glmDir,subj_id,'hrf_tune');
+        if (~exist(dir_output,'dir'))
+            mkdir(dir_output);
+        end
+
+        %% load SPM.mat (GLM information)
+        SPM = load(fullfile(baseDir,'glm_3',subj_id,'SPM.mat'));
+        SPM = SPM.SPM;
+
+        %% Get the hemodynamic response in micro-time resolution
+        SPM.xBF.UNITS    = 'secs'; % units of the hrf
+        SPM.xBF.T        = 16; % microtime resolution: number of time samples per scan
+        SPM.xBF.dt       = SPM.xY.RT/SPM.xBF.T;  % Delta-t per sample 
+        SPM.xBF.T0       = 1; % first time bin
+        SPM.xBF.name     = 'fitted_hrf';
+        SPM.xBF.order    = 1;
+        SPM.xBF.Volterra = 1;  % volterra expansion order?
+        SPM.xBF.params = hrf_params;
+        SPM.xBF.bf = spm_hrf(SPM.xBF.dt,hrf_params);
+        % p(1) - delay of response (relative to onset)          6
+        % p(2) - delay of undershoot (relative to onset)       16
+        % p(3) - dispersion of response                         1
+        % p(4) - dispersion of undershoot                       1
+        % p(5) - ratio of response to undershoot                6
+        % p(6) - onset {seconds}                                0
+        % p(7) - length of kernel {seconds}                    32
+        SPM.xBF.length = size(SPM.xBF.bf,1)*SPM.xBF.dt; % support in seconds 
+        
+        % Reconvolve the design matrix with new HRF
+        SPM = spmj_glm_convolve(SPM);
+
+        %% 피험자의 surface 공간에서 각 ROI의 node (2-D) 정보 
+        fname = fullfile(baseDir,roiDir,subj_id,sprintf('%s.Task_regions.mat',subj_id));
+        R = load(fname); R = R.R;
+
+        %% 피험자 EPI 의 3-D 정보
+        VolFile = R{1,1}.image;
+        % VolFile = fullfile(baseDir,glmDir,subj_id,'mask.nii');
+        V = spm_vol(VolFile);
+
+        for i=1:length(R)
+            hemisphere = R{i}.hem;
+            roi = R{i}.name;
+
+            %% load y_raw
+            dir_yraw = fullfile(baseDir,roiDir,subj_id);
+            fname = fullfile(dir_yraw, sprintf('cifti.%s.%s.%s.y_raw.dtseries.nii',hemisphere,subj_id,roi));
+            cii = cifti_read(fname);
+            Yraw = double(cii.cdata(:,:)');
+            clear cii
+            
+            % Restimate the betas and get predicted and residual response
+            [beta, Yhat, Yres] = spmj_glm_fit(SPM,Yraw);
+
+            %% y_hat
+            cii = region_make_cifti(R{i},V,'data',Yhat','dtype','series','TR',1);
+            fname = fullfile(dir_output, sprintf('cifti.%s.%s.%s.%s.%s.y_hat.dtseries.nii',hemisphere,glmDir,params,subj_id,roi));
+
+            cifti_write(cii, fname);
+
+            %% y_res
+            cii = region_make_cifti(R{i},V,'data',Yres','dtype','series','TR',1);
+            fname = fullfile(dir_output, sprintf('cifti.%s.%s.%s.%s.%s.y_res.dtseries.nii',hemisphere,glmDir,params,subj_id,roi));
+            cifti_write(cii, fname);
+
+            %% beta
+            cii = region_make_cifti(R{i},V,'data',beta','dtype','scalars','TR',1);
+            fname = fullfile(dir_output, sprintf('cifti.%s.%s.%s.%s.%s.beta.dscalar.nii',hemisphere,glmDir,params,subj_id,roi));
+            cifti_write(cii, fname);
+        end
+        xBF = SPM.xBF;
+        save(fullfile(dir_output,sprintf('xBF_%s.mat',params)),'xBF','-v7.3');
     
     case 'MNI:norm_write'
         vararginoptions(varargin, {'sn','glm'}); %% 
