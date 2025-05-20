@@ -625,7 +625,7 @@ switch(what)
         SPM = spmj_glm_convolve(SPM);
 
         %% 피험자의 surface 공간에서 각 ROI의 node (2-D) 정보 
-        fname = fullfile(baseDir,roiDir,subj_id,sprintf('%s.Task_regions.mat',subj_id));
+        fname = fullfile(baseDir,roiDir,S_id,sprintf('%s.Task_regions.mat',S_id));
         R = load(fname); R = R.R;
 
         %% 피험자 EPI 의 3-D 정보
