@@ -275,10 +275,11 @@ switch(what)
         load(fullfile(dir_work, 'SPM.mat'));
         SPM.swd = dir_work;
 
+        %% Non-interest index
         iB = SPM.xX.iB;
         save(fullfile(dir_work, "iB.mat"), "iB", '-v7.3');
 
-        % Run the GLM.
+        %% Run the GLM.
         spm_rwls_spm(SPM);
         % if fig==1
         %     dm = SPM.xX.xKXs.X(SPM.Sess(1).row,SPM.Sess(1).col); % design matrix for one run
@@ -300,6 +301,11 @@ switch(what)
         %     fprintf(1, '\nVariance estimates: %2.3f\nVariance regressors: %2.3f\nVariance inflation factor: %2.3f (the closer to 1, the better)\n', varE, varX, vif);
         % end
         
+        %% Save the prewhitened design matrix
+        nKX = SPM.xX.nKX;
+        save(fullfile(dir_work,'nKX_data.mat'),'nKX')
+
+        %% resave SPM
         tmp = load(fullfile(dir_work,'SPM.mat'));
         delete(fullfile(dir_work,'SPM.mat'));
         SPM = tmp.SPM;
@@ -634,13 +640,15 @@ switch(what)
         V = spm_vol(VolFile);
 
         for i=1:length(R)
-            hemisphere = R{i}.hem;
-            if hemisphere=='L'
-                cortex_structure = 'CORTEX_LEFT';
-            elseif hemisphere=='R'
-                cortex_structure = 'CORTEX_RIGHT';
-            end
             roi = R{i}.name;
+            area = 'OTHER';
+
+            hemisphere = R{i}.hem;
+            % if hemisphere=='L'
+            %     area = [roi '_LEFT'];
+            % elseif hemisphere=='R'
+            %     area = [roi '_RIGHT'];
+            % end
 
             %% load y_raw
             dir_yraw = fullfile(baseDir,roiDir,subj_id);
@@ -653,19 +661,19 @@ switch(what)
             [beta, Yhat, Yres] = spmj_glm_fit(SPM,Yraw);
 
             %% y_hat
-            cii = region_make_cifti(R{i},V,'data',Yhat','dtype','series','struct',cortex_structure,'TR',1);
+            cii = region_make_cifti(R{i},V,'data',Yhat','dtype','series','struct',area,'TR',1);
             fname = fullfile(dir_output, sprintf('cifti.%s.%s.%s.%s.%s.y_hat.dtseries.nii',hemisphere,glmDir,params,subj_id,roi));
             cifti_write(cii, fname);
             clear cii
 
             %% y_res
-            cii = region_make_cifti(R{i},V,'data',Yres','dtype','series','struct',cortex_structure,'TR',1);
+            cii = region_make_cifti(R{i},V,'data',Yres','dtype','series','struct',area,'TR',1);
             fname = fullfile(dir_output, sprintf('cifti.%s.%s.%s.%s.%s.y_res.dtseries.nii',hemisphere,glmDir,params,subj_id,roi));
             cifti_write(cii, fname);
             clear cii
 
             %% beta
-            cii = region_make_cifti(R{i},V,'data',beta(SPM.xX.iC,:)','dtype','scalars','struct',cortex_structure,'TR',1);
+            cii = region_make_cifti(R{i},V,'data',beta(SPM.xX.iC,:)','dtype','scalars','struct',area,'TR',1);
             fname = fullfile(dir_output, sprintf('cifti.%s.%s.%s.%s.%s.beta.dscalar.nii',hemisphere,glmDir,params,subj_id,roi));
             cifti_write(cii, fname);
             clear cii
