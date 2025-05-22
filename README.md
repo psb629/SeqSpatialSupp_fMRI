@@ -56,24 +56,24 @@ sss_GLM('GLM:all','sn',<subject number>,'glm',<GLM number>)
 
 ### GLM number
 
-Index (i,j)
+Index (s,c)
 - Sequence
-	- i=0: 32451
-	- i=1: 35124
-	- i=2: 13254
-	- i=3: 14523
+	- s=0: 32451
+	- s=1: 35124
+	- s=2: 13254
+	- s=3: 14523
 - Cue
-	- j=0: Letter
-	- j=1: Spatial
+	- c=0: Letter
+	- c=1: Spatial
 
 i) GLM = 2: Repetition
 
 |  | trial $t-1$ | trial $t$ |
 |---------|---------|---------|
-| Both-Rep| $(i,j)$ | $(i,j)$ |
-| Cue-Rep | $(i,\neg j)$ | $(i,j)$ |
-| Seq-Rep | $(\neg i,j)$ | $(i,j)$ |
-| NRep    | $(\neg i,\neg j)$ | $(i,j)$ |
+| Both-Rep| $(s,c)$ | $(s,c)$ |
+| Cue-Rep | $(s,\neg c)$ | $(s,c)$ |
+| Seq-Rep | $(\neg s,c)$ | $(s,c)$ |
+| NRep    | $(\neg s,\neg c)$ | $(s,c)$ |
 
 |(s,c)|(0,0)|(0,1)|(1,0)|(1,1)|(2,0)|(2,1)|(3,0)|(3,1)| 
 |-----|-----|-----|-----|-----|-----|-----|-----|-----|
@@ -86,7 +86,7 @@ i) GLM = 2: Repetition
 |(3,0)|     |     |     |     |     |     |  B  | S27 |
 |(3,1)|     |     |     |     |     |     |     |  B  |
 
-ii) GLM = 3: Trial State (i,j)
+ii) GLM = 3: Trial State (s,c)
 - 1: (0,0)
 - 2: (0,1)
 - 3: (1,0)
