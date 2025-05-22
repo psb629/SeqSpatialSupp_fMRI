@@ -4,7 +4,7 @@ function R = behav_get_basic(behav_data, glm)
 %%%%%%%%%%%%%%%%%%%%%
 %   behav_data: str
 %       The file name.
-%       e.g.) F:/SeqSpatialSupp_fMRI/behavDir/sub-S01/ssh__S01.dat
+%       e.g.) /Volumes/Diedrichsen_data$/data/SeqSpatialSupp_fMRI/behavDir/sub-S01/ssh__S01.dat
 %
 %%%%%%%%%%%%%%%%%%%%%
 %%%     output    %%%
@@ -12,11 +12,11 @@ function R = behav_get_basic(behav_data, glm)
 %   R: cell
 %       Data field
 
-% condition number:
+% Introduction and explanation of the index,
 % 1: seqType (0: Number cue, 1: Spatial visual cue
 % 2: seqID (0: 32451, 1:35124, 2:13254, 3:14523)
-% 3: trialState ((seqID, seqType)=0:(0,0),1:(0,1),2:(1,0),3:(1,1),4:(2,0),5:(2,1),6:(3,0),7:(3,1)
-% 4: transitionState
+% 3: trialState (seqID, seqType)=0:(0,0),1:(0,1),2:(1,0),3:(1,1),4:(2,0),5:(2,1),6:(3,0),7:(3,1)
+% 4: transitionState 0:(0,0)->(0,0), 1:(0,0)->(0,1), ... , 62:(3,1)->(3,0), 63:(3,1)->(3,1)
 % 5: isError (0: success, 1: error)
 
 seqences = [32451, 35124, 13254, 14523];
