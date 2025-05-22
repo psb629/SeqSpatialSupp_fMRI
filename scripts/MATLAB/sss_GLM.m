@@ -635,6 +635,11 @@ switch(what)
 
         for i=1:length(R)
             hemisphere = R{i}.hem;
+            if hemisphere=='L'
+                cortex_structure = 'CORTEX_LEFT';
+            elseif hemisphere=='R'
+                cortex_structure = 'CORTEX_RIGHT';
+            end
             roi = R{i}.name;
 
             %% load y_raw
@@ -648,19 +653,19 @@ switch(what)
             [beta, Yhat, Yres] = spmj_glm_fit(SPM,Yraw);
 
             %% y_hat
-            cii = region_make_cifti(R{i},V,'data',Yhat','dtype','series','TR',1);
+            cii = region_make_cifti(R{i},V,'data',Yhat','dtype','series','struct',cortex_structure,'TR',1);
             fname = fullfile(dir_output, sprintf('cifti.%s.%s.%s.%s.%s.y_hat.dtseries.nii',hemisphere,glmDir,params,subj_id,roi));
             cifti_write(cii, fname);
             clear cii
 
             %% y_res
-            cii = region_make_cifti(R{i},V,'data',Yres','dtype','series','TR',1);
+            cii = region_make_cifti(R{i},V,'data',Yres','dtype','series','struct',cortex_structure,'TR',1);
             fname = fullfile(dir_output, sprintf('cifti.%s.%s.%s.%s.%s.y_res.dtseries.nii',hemisphere,glmDir,params,subj_id,roi));
             cifti_write(cii, fname);
             clear cii
 
             %% beta
-            cii = region_make_cifti(R{i},V,'data',beta(SPM.xX.iC,:)','dtype','scalars','TR',1);
+            cii = region_make_cifti(R{i},V,'data',beta(SPM.xX.iC,:)','dtype','scalars','struct',cortex_structure,'TR',1);
             fname = fullfile(dir_output, sprintf('cifti.%s.%s.%s.%s.%s.beta.dscalar.nii',hemisphere,glmDir,params,subj_id,roi));
             cifti_write(cii, fname);
             clear cii
