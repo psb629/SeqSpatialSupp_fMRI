@@ -1,5 +1,6 @@
+import sys
 import platform
-from os.path import join
+from os.path import join, exists, abspath
 from os import getcwd
 import numpy as np
 import h5py
@@ -58,6 +59,10 @@ def get_list_sn():
 def get_list_roi():
 
 	return np.array(['S1', 'M1', 'PMd', 'PMv', 'SMA', 'V1', 'SPLa', 'SPLp'])
+
+def get_S_id(subj):
+
+	return subj.replace('R','S')
 
 def load_spm(fname):
 	file = h5py.File(fname)
