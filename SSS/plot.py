@@ -61,3 +61,9 @@ def get_WPM(subj, glm):
 	mask = join(dir_glm,subj,'mask.nii')
 
 	return white, pial, mask
+
+def plot_SPM_X(subj, glm, run=1):
+	dir_glm = join(ut.get_dir_root(),glm)
+
+	nTRs = 410
+	idx_row = np.arange(

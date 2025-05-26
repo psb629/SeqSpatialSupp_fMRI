@@ -64,9 +64,10 @@ def get_S_id(subj):
 
 	return subj.replace('R','S')
 
-def load_spm(fname):
-	file = h5py.File(fname)
-	SPM = file['SPM']
+def load_SPM(SPM):
+	if isinstance(SPM, str):
+		file = h5py.File(SPM)
+		SPM = file['SPM']
 
 	return SPM
 
