@@ -2,6 +2,12 @@
 
 ## 1. Preprocessing
 
+### 1-0. Behavioural Data
+Create a 'behav_info.tsv' file containing the necessary information for the GLM in each subject's raw directory.
+```
+scripts/extract_behav_info.py --subject <subj_id>
+```
+
 ### 1-1. Anatomical Image
 
 ```
