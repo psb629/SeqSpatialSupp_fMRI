@@ -9,8 +9,9 @@ function R = get_behav(subj_id)
 %%%%%%%%%%%%%%%%%%%%%
 %%%     output    %%%
 %%%%%%%%%%%%%%%%%%%%%
-%   R: cell
+%   R: struct
 %       Data field (including basic/fundametal properties of behavioural data)
+%
 
 %% Note
 % Introduction and explanation of the index,
@@ -58,8 +59,12 @@ for r=1:nRuns
     R.isError(r,:) = S.isError(idx); % Error: The sequence input was incorrect.
 
     for t=1:nTrials
-        % R.onset(r,t) = (S.startTimeReal(idx(t)) + 1000 + S.RT(idx(t)))*0.001;
-        R.onset(r,t) = (S.startTimeReal(idx(t)) + 1000) * 0.001;
+        realtime = S.startTimeReal(idx(t));
+        if realtime < 6 % to remove invalid onset times (e.g., '0s' or '1s')
+            continue
+        end
+        % R.onset(r,t) = (realtime + 1000 + S.RT(idx(t)))*0.001;
+        R.onset(r,t) = (realtime + 1000) * 0.001;
 
         % if S.RT(idx(t))==0
         %     R.dur(r,t)=0;  %% invalid trials 

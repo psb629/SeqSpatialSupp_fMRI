@@ -2,14 +2,16 @@ function R = construct_dsgmat(R, glm)
 %%%%%%%%%%%%%%%%%%%%%
 %%%     Input     %%%
 %%%%%%%%%%%%%%%%%%%%%
-%   R: cell
+%   R: struct
 %       The data field R created by get_bahav.m
 %   glm: GLM number to be perfomred
+%
 %%%%%%%%%%%%%%%%%%%%%
 %%%     output    %%%
 %%%%%%%%%%%%%%%%%%%%%
-%   R: cell
+%   R: struct
 %       Enhanced data field with GLM regressors
+%
 
 % nRuns = R.nRuns;
 % nTrials = R.nTrials;
