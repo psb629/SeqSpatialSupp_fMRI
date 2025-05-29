@@ -181,4 +181,4 @@ def get_df_window_y(subj, glm, roi, param, pre=10, post=20, TR=1):
 
 	df_window_y = pd.DataFrame(lines)
 
-	return df_window_y, np.array(onsets_by_run)
+	return df_window_y
