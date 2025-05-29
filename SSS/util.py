@@ -68,7 +68,7 @@ def get_dir_result():
 def get_list_sn():
 	nn = [1, 2, 3, 5, 6, 8, 9, 10, 11, 12, 13, 14]
 
-	return np.array(['%02d'%(ii+1) for ii in nn])
+	return np.array(['%02d'%ii for ii in nn])
 
 def get_S_id(subj):
 
