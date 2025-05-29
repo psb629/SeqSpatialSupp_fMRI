@@ -30,7 +30,7 @@ hrf_params = [hrf_params hrf_params_default(length(hrf_params)+1:end)];
 if isempty(sn)
     error('GLM:design -> ''sn'' must be passed to this function.')
 end
-[subj_id, S_id] = get_id(fullfile(dir_git,'SeqSpatialSupp_fMRI/participants.tsv'), sn);
+[subj_id, S_id] = get_id(fullfile(baseDir,'participants.tsv'), sn);
 
 if isempty(glm)
     error('GLM:design -> ''glm'' must be passed to this function.')
@@ -45,6 +45,10 @@ hname = {'CortexLeft', 'CortexRight'}; % 'CortexLeft', 'CortexRight', 'Cerebellu
 %% prefix of output files
 prefix = 'u';
 
+%%
+cues = ["Letter", "Spatial"];
+sequences = [32451, 35124, 13254, 14523];
+
 %% MAIN OPERATION 
 switch(what)
     case 'GLM:all'
@@ -56,23 +60,79 @@ switch(what)
             delete(spm_file);
         end
 
+        sss_GLM('GLM:make_event_tsv','sn',sn,'glm',glm);
         sss_GLM('GLM:design','sn',sn,'glm',glm,'nTRs',nTRs,'hrf_params',hrf_params);
         sss_GLM('GLM:estimate','sn',sn,'glm',glm);
         sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map',map); % https://github.com/nno/surfing.git, spm nanmean
     
+    case 'GLM:init'
+        D = dload(fullfile(baseDir,behavDir,sprintf('sub-%s/behav_info.tsv',subj_id)));
+        % runs = 1:8;
+        % D = getrow(D, ismember(D.BN, runs));
+
+        events.BN = [];
+        events.TN = [];
+        events.onset = [];
+        events.duration = [];
+        events.eventtype = [];
+        events.seq = []; % 0: 32451, 1:35124, 2:13254, 3:14523
+        events.cue = []; % 0: Letter cue, 1: Spatial cue
+
+        varargout{1} = D;
+        varargout{2} = events;
+
     case 'GLM:make_glm_1'
 
+        [D, events] = sss_GLM('GLM:init','sn',sn,'glm',glm);
+
+        %% GLM1 : Trial State
+        % 0: (0,0), 1: (0,1), 2: (1,0), 3: (1,1), 4: (2,0), 5: (2,1), 6: (3,0), 7: (3,1)
+
+        for idx_s = 1:length(sequences)
+            for idx_c = 1:length(cues)
+                row_idxs = ismember(D.cue,cues(idx_c)) & ismember(D.sequence,sequences(idx_s)) & D.TN<=64;
+
+                events.BN = [events.BN; D.BN(row_idxs)];
+                events.TN = [events.TN; D.TN(row_idxs)];
+                events.onset = [events.onset; D.onset(row_idxs)+D.prepTime(row_idxs)];
+                events.duration = [events.duration; repmat(2000, [sum(row_idxs), 1])];
+                events.eventtype = [events.eventtype; repmat(sprintf("(%d,%d)",idx_s-1,idx_c-1), [sum(row_idxs), 1])];
+                events.seq = [events.seq; D.sequence(row_idxs)];
+                events.cue = [events.cue; D.cue(row_idxs)];
+            end
+        end
+        
+        events = struct2table(events);
+        events.onset = events.onset .* 0.001;
+        events.duration = events.duration .* 0.001;
 
         varargout{1} = events;
+    
+    case 'GLM:make_glm_2'
+
+        [D, events] = sss_GLM('GLM:init','sn',sn,'glm',glm);
+        
+        %% GLM2 : Repetition Suppression
+        % |(s,c)|(0,0)|(0,1)|(1,0)|(1,1)|(2,0)|(2,1)|(3,0)|(3,1)| 
+        % |-----|-----|-----|-----|-----|-----|-----|-----|-----|
+        % |(0,0)|(B00 | S01 | C02 | N03)| C04 | N05 | C06 | N07 |
+        % |(0,1)|(    | B09 | N10 | C11)| N12 | C13 | N14 | C15 |
+        % |(1,0)|(    |     | B18 | S19)| C20 | N21 | C22 | N23 |
+        % |(1,1)|(    |     |     | B27)| N28 | C29 | N30 | C31 |
+        % |(2,0)|     |     |     |     |(B36 | S37 | C38 | N39)|
+        % |(2,1)|     |     |     |     |(    | B45 | N46 | C47)|
+        % |(3,0)|     |     |     |     |(    |     | B54 | S55)|
+        % |(3,1)|     |     |     |     |(    |     |     | B63)|
+        % B: Both-Rep, S: Seq-Rep, C: Cue-Rep, N: No-Rep, (First Finger)
 
     case 'GLM:make_event_tsv'
         w = sprintf('GLM:make_glm_%d',glm);
-        events = sss_GLM(w,'sn',sn);
+        events = sss_GLM(w,'sn',sn,'glm',glm);
 
-        dir_work = fullfile(baseDir,glmDir,subj_id);
-        if (~exist(dir_work,'dir'))
-            mkdir(dir_work);
-        end
+        dir_work = fullfile(baseDir,behavDir,sprintf('sub-%s',subj_id));
+        % if (~exist(dir_work,'dir'))
+        %     mkdir(dir_work);
+        % end
 
         writetable(events, fullfile(dir_work, sprintf('glm_%d.tsv', glm)), 'FileType', 'text', 'Delimiter', '\t')
     
@@ -81,11 +141,19 @@ switch(what)
         % https://github.com/spm/spm.git
         % https://github.com/jdiedrichsen/rwls.git
 
-        %% Import globals from spm_defaults 
+        %% import globals from spm_defaults 
         global defaults; 
         if (isempty(defaults))
             spm_defaults;
         end
+
+        %% load event file
+        events_file = fullfile(baseDir,behavDir,sprintf('sub-%s/glm_%d.tsv',subj_id,glm));
+        Dd = dload(events_file);
+
+        regressors = unique(Dd.eventtype);
+        nRegr = length(regressors);
+
         %% cvi type
         % cvi_type = 'wls';
         cvi_type = 'fast';        
@@ -105,92 +173,53 @@ switch(what)
 
         T = [];
 
-        % R1 = construct_dsgmat(sprintf('S%02d',sn),glm);
-        % R2 = construct_dsgmat(sprintf('R%02d',sn),glm);
-        % R = combine_behavdata(R1,R2);
-
-        %% Load behavioural data
-        R = get_behav(subj_id);
-
-        %% Construct datafield for SPM
-        R = construct_dsgmat(R, glm);
-        
-        n_cond = length(unique(R.cond));
-
-        % % nTRs = [410*ones(1,10) 401 406 410 404 410 410 385]; % For S11
-        % % nTRs = [410*ones(1,16) 385]; % for S09
-        
-        % if sn==9 % for S09
-        %     nTR = [410*ones(1,8) 385];
-        % elseif sn==11 % for S11
-        %     nTR = [410*ones(1,8) 385];
-        % elseif sn==25 % for R11
-        %     nTR = [410*ones(1,2) 401 406 410 404 410 410];
-        % end
+        epi_files = dir(fullfile(baseDir,imagingDir,subj_id,sprintf('%s_run_*.nii',subj_id)));
 
         runs = 1:8;
+        itaskUni = 0;
         for run=runs
             % Setup scans for current session
-            N = {};
-            for i=1:nTRs(run)
-                N{i} = fullfile(baseDir,imagingDir,subj_id,sprintf('%s_run_%02d.nii,%d',subj_id,run,i));
-            end
-            J.sess(run).scans= N;
+            J.sess(run).scans= {fullfile(epi_files(run).folder, epi_files(run).name)};
 
-            % Setup names for conditions
-            switch(glm)
-                % case 0
-                %     cond_name = {'All trials'};  %% only for 9th run
-                case 1
-                    nointerest_idx = 9;
-                    for c=1:n_cond; cond_name{c} = sprintf('Trial-state %d',c); end
-                    if n_cond==nointerest_idx % R11 had all cleared
-                        cond_name{n_cond} = 'Non-Interest';
-                    end
-                case 2
-                    nointerest_idx = 9;
-                    cond_name = {'MotorOnly-L','MotorOnly-S','CueOnly-L','CueOnly-S',...
-                                'BothRep-L','BothRep-S','NonRep-L','NonRep-S','Non-Interest'};
-                case 4
-                    cond_name = {'Letter','Spatial','Non-Interest'};
-            end
+            % Preallocate memory for conditions
+            J.sess(run).cond = repmat(struct('name', '', 'onset', [], 'duration', []), nRegr, 1);
 
-            for c=1:n_cond  %% c : condition index
-                c_ = mod(c,nointerest_idx); % Remind that the cond value of the 9th regressor is 0.
-                J.sess(run).cond(c).name = cond_name{c};
-                J.sess(run).cond(c).onset = R.onset(run,find(R.cond(run,:)==c_));
-                % J.sess(r).cond(c).duration = 0.001; % used fixed time, 2 secon
-                J.sess(run).cond(c).duration = R.dur(run,find(R.cond(run,:)==c_));
-                % if glm==0
-                %     J.sess(1).cond(1).name = 'All trials';
-                %     J.sess(1).cond(1).onset = R.onset'+1;  %% added 1
-                %     J.sess(1).cond(1).duration = 0.001;
-                % elseif glm==1
-                %     J.sess(r).cond(c).name = sprintf('trial %d',c);
-                %     J.sess(r).cond(c).onset = R.onset(r,c);
-                %     J.sess(r).cond(c).duration = 0.001; % used fixed time, 2 secon
-                %     % J.sess(r).cond(c).duration = R.dur(r,c);
-                % else
-                %     J.sess(r).cond(c).name = cond_name{c};
-                %     J.sess(r).cond(c).onset = R.onset(r,find(R.cond(r,:)==c));
-                %     % J.sess(r).cond(c).duration = 0.001; % used fixed time, 2 secon
-                %     J.sess(r).cond(c).duration = R.dur(r,find(R.cond(r,:)==c));
-                % end
+            for regr = 1:nRegr
+                itaskUni = itaskUni + 1;
+                rows = find(Dd.BN == run & strcmp(Dd.eventtype, regressors(regr)));
+
+                % Regressor name
+                J.sess(run).cond(regr).name = regressors{regr};
+
+                % Define onset
+                J.sess(run).cond(regr).onset  = Dd.onset(rows);
+                
+                % Define durationDuration(regr));
+                J.sess(run).cond(regr).duration = Dd.duration(rows); % needs to be in seconds
 
                 % Define time modulator
                 % Add a regressor that account for modulation of betas over time
-                J.sess(run).cond(c).tmod=0;
+                J.sess(run).cond(regr).tmod=0;
 
                 % Orthogonalize parametric modulator
                 % Make the parametric modulator orthogonal to the main regressor
-                J.sess(run).cond(c).orth=0;
+                J.sess(run).cond(regr).orth=0;
                 
                 % Define parametric modulators
                 % Add a parametric modulators, like force or reaction time. 
-                J.sess(run).cond(c).pmod=struct('name',{},'param',{},'poly',{});
+                J.sess(run).cond(regr).pmod=struct('name',{},'param',{},'poly',{});
 
-               % add the condition info to the reginfo structure
+                % add the condition info to the reginfo structure
 
+                % filling in "reginfo"
+                TT.sn        = sn;
+                TT.run       = run;
+                TT.task_name = regressors(regr);
+                TT.task      = regr;
+                TT.taskUni   = itaskUni;
+                % TT.n_rep     = sum(idx);
+        
+                T = addstruct(T, TT);
             end
 
             %% J.sess(run).multi
@@ -232,16 +261,6 @@ switch(what)
             J.sess(run).hpf=hrf_cutoff;
         end
 
-        % filling in "reginfo"
-        TT.sn        = sn;
-        TT.run       = run;
-        TT.name      = regressors(regr);
-        TT.cue       = cue_id;
-        TT.epoch     = epoch;
-        TT.stimFinger = stimFinger_id;
-        TT.instr = instr;
-        T = addstruct(T, TT);
-
         % Specify factorial design
         J.fact = struct('name', {}, 'levels', {});
 
@@ -280,13 +299,18 @@ switch(what)
         % remove empty rows (e.g., when skipping runs)
         J.sess = J.sess(~arrayfun(@(x) all(structfun(@isempty, x)), J.sess));
 
-        % Save the GLM file for this subject.
+        % run
         spm_rwls_run_fmri_spec(J);
+
+        % Save the GLM file for this subject.
         tmp = load(fullfile(J.dir{1},'SPM.mat'));
         delete(fullfile(J.dir{1},'SPM.mat'));
         SPM = tmp.SPM;
         save(fullfile(J.dir{1},'SPM.mat'),'SPM','-v7.3');
-        save(fullfile(J.dir{1},'R.mat'),'R');
+
+        dsave(fullfile(J.dir{1},'reginfo.tsv'), T);
+
+        fprintf('- estimates for glm_%d subject %d has been saved for %s \n', glm, subj_id);
     
     case 'GLM:estimate' % estimate beta coefficient
         % Estimate the GLM from the appropriate SPM.mat file.
@@ -512,10 +536,10 @@ switch(what)
         elseif glm==3  %% encoding trial-state, 9th state is for non-interest
             load('SPM_info.mat');
             n_cond = length(unique(R.cond));
-            for c=1:n_cond 
-                contrast_names{c} = sprintf('Trial-State %d',c);
-                temp = zeros(1,n_cond);temp(c) = 1;
-                optC(c,:) = [repmat(temp, 1, nRun) zeros(1,nRun)];
+            for regr=1:n_cond 
+                contrast_names{regr} = sprintf('Trial-State %d',regr);
+                temp = zeros(1,n_cond);temp(regr) = 1;
+                optC(regr,:) = [repmat(temp, 1, nRun) zeros(1,nRun)];
                 optC = optC/nRun;
             end
         elseif glm==4
@@ -541,7 +565,7 @@ switch(what)
                 R2 = construct_dsgmat(sprintf('R%02d',sn),2);  % Use glm=2 for the contrast
                 R = combine_behavdata(R1,R2);
                 X = SPM.xX.X(:,1:end-length(SPM.nscan));
-                for c=1:8 temp = zeros(nRun, nTr); temp(R.cond==c)=1; optC(c,:) = calc_optWeights2(temp,X);end
+                for regr=1:8 temp = zeros(nRun, nTr); temp(R.cond==regr)=1; optC(regr,:) = calc_optWeights2(temp,X);end
                 optC(9,:) = optC(1,:)-optC(2,:);
                 optC(10,:) = optC(5,:)-optC(6,:);
                 optC(11,:) = optC(9,:)-optC(10,:);
@@ -745,10 +769,10 @@ switch(what)
         fnames = {};
         ofnames = {};
         load(fullfile(baseDir,sprintf('glm_%d',glm),sprintf('S%02d',sn),'SPM_light.mat'));
-        for c=1:length(SPM.xCon)
-            fnames{c}=fullfile(baseDir, sprintf('glm_%d',glm),sprintf('S%02d',sn),sprintf('con_%s.nii',SPM.xCon(c).name));
-            ofnames{c} = fullfile(groupDir,sprintf('con_%s_S%02d.nii',SPM.xCon(c).name,sn));
-            spmdefs_apply_def(Def,mat,fnames{c},intrp,ofnames{c})
+        for regr=1:length(SPM.xCon)
+            fnames{regr}=fullfile(baseDir, sprintf('glm_%d',glm),sprintf('S%02d',sn),sprintf('con_%s.nii',SPM.xCon(regr).name));
+            ofnames{regr} = fullfile(groupDir,sprintf('con_%s_S%02d.nii',SPM.xCon(regr).name,sn));
+            spmdefs_apply_def(Def,mat,fnames{regr},intrp,ofnames{regr})
         end
 
 
