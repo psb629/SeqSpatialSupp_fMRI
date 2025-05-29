@@ -37,7 +37,7 @@ df = pd.read_csv(raw_data, delimiter='\t')
 
 df['cue'] = df['seqType'].map({0:'Letter',1: 'Spatial'})
 df['response'] = df[['response%d'%d for d in range(5)]].apply(lambda row: int(''.join(map(str, row))), axis=1)
-df = df.filter(items=['BN','TN','startTime','Cue','cueP','response','MT','RT','isError','prepTime','iti'])
+df = df.filter(items=['BN','TN','startTime','cue','cueP','response','MT','RT','isError','prepTime','iti'])
 df.rename(columns={'startTime':'onset', 'cueP':'sequence', 'iti':'ITI'}, inplace=True)
 
 df.to_csv(
