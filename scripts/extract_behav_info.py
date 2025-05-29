@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+#####################
+###     Input     ###
+#####################
+#   Subj_id: str
+#       Subject ID
+#       e.g.) 'S01', ..., 'R14'
+#
+#####################
+###     output    ###
+#####################
+#	Behavioural Data: A tsv file
+#		Basic information to construct GLM
+#
+
 import sys
 from os.path import join
 from os import makedirs
@@ -9,8 +23,8 @@ import warnings
 
 if ('-s' in sys.argv):
 	idx = sys.argv.index('-s')
-elif ('--subj' in sys.argv):
-	idx = sys.argv.index('--subj')
+elif ('--subject' in sys.argv):
+	idx = sys.argv.index('--subject')
 subj = sys.argv[idx+1]
 
 dir_root = '/Volumes/Diedrichsen_data$/data/SeqSpatialSupp_fMRI'

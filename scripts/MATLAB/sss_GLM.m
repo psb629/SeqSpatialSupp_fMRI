@@ -59,7 +59,23 @@ switch(what)
         sss_GLM('GLM:design','sn',sn,'glm',glm,'nTRs',nTRs,'hrf_params',hrf_params);
         sss_GLM('GLM:estimate','sn',sn,'glm',glm);
         sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map',map); % https://github.com/nno/surfing.git, spm nanmean
-        
+    
+    case 'GLM:make_glm_1'
+
+
+        varargout{1} = events;
+
+    case 'GLM:make_event_tsv'
+        w = sprintf('GLM:make_glm_%d',glm);
+        events = sss_GLM(w,'sn',sn);
+
+        dir_work = fullfile(baseDir,glmDir,subj_id);
+        if (~exist(dir_work,'dir'))
+            mkdir(dir_work);
+        end
+
+        writetable(events, fullfile(dir_work, sprintf('glm_%d.tsv', glm)), 'FileType', 'text', 'Delimiter', '\t')
+    
     case 'GLM:design'
         %% dependency:
         % https://github.com/spm/spm.git
@@ -72,17 +88,12 @@ switch(what)
         end
         %% cvi type
         % cvi_type = 'wls';
-        cvi_type = 'fast';
-
-        %% 
-        list_run = 1:8;
+        cvi_type = 'fast';        
         
         %% initiate J
         J = [];
         J.dir = {fullfile(baseDir,glmDir,subj_id)};
-        if (~exist(J.dir{1},'dir'))
-            mkdir(J.dir{1});
-        end
+
         J.timing.units = 'secs'; % timing unit that all timing in model will be
         J.timing.RT = 1; % TR (in seconds, as per 'J.timing.units')
         % number of temporal bins in which the TR is divided,
@@ -117,13 +128,14 @@ switch(what)
         %     nTR = [410*ones(1,2) 401 406 410 404 410 410];
         % end
 
-        for r=list_run
+        runs = 1:8;
+        for run=runs
             % Setup scans for current session
             N = {};
-            for i=1:nTRs(r)
-                N{i} = fullfile(baseDir,imagingDir,subj_id,sprintf('%s_run_%02d.nii,%d',subj_id,r,i));
+            for i=1:nTRs(run)
+                N{i} = fullfile(baseDir,imagingDir,subj_id,sprintf('%s_run_%02d.nii,%d',subj_id,run,i));
             end
-            J.sess(r).scans= N;
+            J.sess(run).scans= N;
 
             % Setup names for conditions
             switch(glm)
@@ -145,10 +157,10 @@ switch(what)
 
             for c=1:n_cond  %% c : condition index
                 c_ = mod(c,nointerest_idx); % Remind that the cond value of the 9th regressor is 0.
-                J.sess(r).cond(c).name = cond_name{c};
-                J.sess(r).cond(c).onset = R.onset(r,find(R.cond(r,:)==c_));
+                J.sess(run).cond(c).name = cond_name{c};
+                J.sess(run).cond(c).onset = R.onset(run,find(R.cond(run,:)==c_));
                 % J.sess(r).cond(c).duration = 0.001; % used fixed time, 2 secon
-                J.sess(r).cond(c).duration = R.dur(r,find(R.cond(r,:)==c_));
+                J.sess(run).cond(c).duration = R.dur(run,find(R.cond(run,:)==c_));
                 % if glm==0
                 %     J.sess(1).cond(1).name = 'All trials';
                 %     J.sess(1).cond(1).onset = R.onset'+1;  %% added 1
@@ -167,15 +179,15 @@ switch(what)
 
                 % Define time modulator
                 % Add a regressor that account for modulation of betas over time
-                J.sess(r).cond(c).tmod=0;
+                J.sess(run).cond(c).tmod=0;
 
                 % Orthogonalize parametric modulator
                 % Make the parametric modulator orthogonal to the main regressor
-                J.sess(r).cond(c).orth=0;
+                J.sess(run).cond(c).orth=0;
                 
                 % Define parametric modulators
                 % Add a parametric modulators, like force or reaction time. 
-                J.sess(r).cond(c).pmod=struct('name',{},'param',{},'poly',{});
+                J.sess(run).cond(c).pmod=struct('name',{},'param',{},'poly',{});
 
                % add the condition info to the reginfo structure
 
@@ -192,7 +204,7 @@ switch(what)
             % that you are not using an external file to specify multiple conditions,
             % and you will define conditions directly in the script (as seen with
             % J.sess(run).cond).
-            J.sess(r).multi={''};
+            J.sess(run).multi={''};
 
             %% J.sess(run).regress
             % Purpose: Allows you to specify additional regressors that are not
@@ -201,7 +213,7 @@ switch(what)
             % physiological measurements (like heart rate or respiration) or other
             % variables of interest. Each regressor has a name and a vector of values
             % corresponding to each scan/time point.
-            J.sess(r).regress=struct('name',{},'val',{});
+            J.sess(run).regress=struct('name',{},'val',{});
 
             %% J.sess(run).multi_reg
             % Purpose: Specifies a file containing multiple
@@ -214,21 +226,21 @@ switch(what)
             % as many rows as there are scans/time points. Each column represents a
             % different regressor (e.g., the six motion parameters from realignment),
             % and each row corresponds to the value of those regressors at each scan.
-            J.sess(r).multi_reg={''};
+            J.sess(run).multi_reg={''};
             
             % Define high pass filter cutoff (in seconds): see glm cases.
-            J.sess(r).hpf=hrf_cutoff;
+            J.sess(run).hpf=hrf_cutoff;
         end
 
         % filling in "reginfo"
-        % TT.sn        = sn;
-        % TT.run       = run;
-        % TT.name      = regressors(regr);
-        % TT.cue       = cue_id;
-        % TT.epoch     = epoch;
-        % TT.stimFinger = stimFinger_id;
-        % TT.instr = instr;    
-        % T = addstruct(T, TT);
+        TT.sn        = sn;
+        TT.run       = run;
+        TT.name      = regressors(regr);
+        TT.cue       = cue_id;
+        TT.epoch     = epoch;
+        TT.stimFinger = stimFinger_id;
+        TT.instr = instr;
+        T = addstruct(T, TT);
 
         % Specify factorial design
         J.fact = struct('name', {}, 'levels', {});
@@ -587,10 +599,10 @@ switch(what)
         h = median(max(X));               % Height of response;
         numB = length(SPM.xX.iB);         % Partitions - runs
         P = cell(1,numB+1);
-        r = 0;
+        run = 0;
         for p=SPM.xX.iB
-            r=r+1;
-            P{r}=sprintf('beta_%4.4d.nii',p);       % get the intercepts and use them to calculate the baseline (mean images)
+            run=run+1;
+            P{run}=sprintf('beta_%4.4d.nii',p);       % get the intercepts and use them to calculate the baseline (mean images)
         end
 
         for con=1:length(SPM.xCon)    % all contrasts
@@ -1003,22 +1015,22 @@ switch(what)
 %             cond = [1 2]';
             V=spm_vol(char(O));            
             % get raw data for voxels in region
-            for r=1:11
+            for run=1:11
 %             for r=1:length(R)
             %             for r=1:length(R) % for each region
                 
-                Y=region_getdata(V,R{r});  
+                Y=region_getdata(V,R{run});  
                 S.psc=nanmean(Y,2);  % use nanmean, SKim
                 S.nanperc = (length(find(isnan(Y)==1))/prod(size(Y)))*ones(length(O),1);
                 S.hemi=repmat(hemi,length(O),1);
-                S.roi=repmat(r,length(O),1);
+                S.roi=repmat(run,length(O),1);
                 S.SN=repmat(s,length(O),1);
                 S.SeqType= SeqType;
                 S.RepType = RepType;
                 S.cond = [1:8]';
 
                 T=addstruct(T,S);
-                fprintf('%d.',r)
+                fprintf('%d.',run)
             end
         end
         % save T
@@ -1143,11 +1155,11 @@ switch(what)
         
         Data = [];
         
-        for r=roi
+        for run=roi
             % Get pre-whitened beta
             %B = mva_prewhiten_beta(data,SPM); 
             normmode = 'runwise';
-            [B,~,Sw] = rsa.spm.noiseNormalizeBeta(data{r},SPM,'normmode',normmode);
+            [B,~,Sw] = rsa.spm.noiseNormalizeBeta(data{run},SPM,'normmode',normmode);
             regNInt = [9:9:72 73:80]; % beta 80개. [9:9:72 73-80] 로 수정. 뒤에 8개 constant
             regInt = [1:80]; regInt(regNInt) = []; % [1:80] 로 수정
             %regNInt = [9:9:144 145:160];
@@ -1157,8 +1169,8 @@ switch(what)
 %             S.beta_nointerest = {B(regNInt,:)};
             S.glm = glm;
             S.subj = sn;
-            S.numVox = size(data{r},2);
-            S.name = {R{r}.name};
+            S.numVox = size(data{run},2);
+            S.name = {R{run}.name};
             S.normmode = normmode;
             Data = addstruct(Data,S);
         end
@@ -1192,13 +1204,13 @@ switch(what)
 
 %         load(fullfile(baseDir,'patterns',sprintf('%s_ROI_pwhBeta.glm%d.mat',sprintf('S%02d',sn), glm)));
         load(fullfile(baseDir,'patterns',sprintf('glm%d/%s_fROI_pwhBeta.glm%d.mat', glm, subj_id, glm)));
-        for r=roi
-            RDM  = rsa.distanceLDC(Data.beta{r},partvec,condvec,SPM.xX.xKXs.X); 
+        for run=roi
+            RDM  = rsa.distanceLDC(Data.beta{run},partvec,condvec,SPM.xX.xKXs.X); 
 %             RDM = rsa.spm.distanceLDCraw(data{r},SPM,condvec,'normmode','runwise','normmethod','multivariate');
             S.glm = glm;
             S.subj = sn;
-            S.numVox = size(data{r},2);
-            S.name = {R{r}.name};
+            S.numVox = size(data{run},2);
+            S.name = {R{run}.name};
 %             S.normmode = normmode;
 %             S.normmethod = normmethod;
             S.RDM = {RDM};
