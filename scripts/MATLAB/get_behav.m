@@ -25,7 +25,7 @@ seqID = [32451, 35124, 13254, 14523]; R.seqID = seqID;
 
 %% Load the behavioural data
 dir_behav = '/Volumes/Diedrichsen_data$/data/SeqSpatialSupp_fMRI/behavDir';
-dir_behav = 'F:\SeqSpatialSupp_fMRI/behavDir';
+% dir_behav = 'F:\SeqSpatialSupp_fMRI/behavDir';
 behav_data = fullfile(dir_behav, sprintf('sub-%s/ssh__%s.dat',subj_id,subj_id));
 addpath(genpath('/Volumes/Diedrichsen_data$/matlab/dataframe'))
 addpath(genpath('\\wsl.localhost/ubuntu-22.04/home/sungbeenpark/github/dataframe'))
@@ -41,30 +41,28 @@ nTrials = 68; R.nTrials = nTrials;
 for r=1:nRuns
 %    dat_format = 'sub-S%.2d/ssh__S%.2d_%.2d.mov';
 %    mov = movload(fullfile(workdir, behavDir, sprintf(data_format, s, s, r)));
-    idx = find(S.BN==r); % find the row corresponding to the r-th run.
+    run_idx = find(S.BN==r); % find the row corresponding to the r-th run.
 
     %% Define Trial State
-    tS(r,S.cueP(idx) == seqID(1) & S.seqType(idx)==0) = 0; % 0: (seq,cue)=(0,0)
-    tS(r,S.cueP(idx) == seqID(1) & S.seqType(idx)==1) = 1; % 1: (seq,cue)=(0,1)
-    tS(r,S.cueP(idx) == seqID(2) & S.seqType(idx)==0) = 2; % 2: (seq,cue)=(1,0)
-    tS(r,S.cueP(idx) == seqID(2) & S.seqType(idx)==1) = 3; % 3: (seq,cue)=(1,1)
-    tS(r,S.cueP(idx) == seqID(3) & S.seqType(idx)==0) = 4; % 4: (seq,cue)=(2,0)
-    tS(r,S.cueP(idx) == seqID(3) & S.seqType(idx)==1) = 5; % 5: (seq,cue)=(2,1)
-    tS(r,S.cueP(idx) == seqID(4) & S.seqType(idx)==0) = 6; % 6: (seq,cue)=(3,0)
-    tS(r,S.cueP(idx) == seqID(4) & S.seqType(idx)==1) = 7; % 7: (seq,cue)=(3,1)
+    tS(r,S.cueP(run_idx) == seqID(1) & S.seqType(run_idx)==0) = 0; % 0: (seq,cue)=(0,0)
+    tS(r,S.cueP(run_idx) == seqID(1) & S.seqType(run_idx)==1) = 1; % 1: (seq,cue)=(0,1)
+    tS(r,S.cueP(run_idx) == seqID(2) & S.seqType(run_idx)==0) = 2; % 2: (seq,cue)=(1,0)
+    tS(r,S.cueP(run_idx) == seqID(2) & S.seqType(run_idx)==1) = 3; % 3: (seq,cue)=(1,1)
+    tS(r,S.cueP(run_idx) == seqID(3) & S.seqType(run_idx)==0) = 4; % 4: (seq,cue)=(2,0)
+    tS(r,S.cueP(run_idx) == seqID(3) & S.seqType(run_idx)==1) = 5; % 5: (seq,cue)=(2,1)
+    tS(r,S.cueP(run_idx) == seqID(4) & S.seqType(run_idx)==0) = 6; % 6: (seq,cue)=(3,0)
+    tS(r,S.cueP(run_idx) == seqID(4) & S.seqType(run_idx)==1) = 7; % 7: (seq,cue)=(3,1)
 
     %% Define Transition State
     transS(r,1) = -1; % The 1st trial doesn't have an index for the transition state.
 
-    R.isError(r,:) = S.isError(idx); % Error: The sequence input was incorrect.
+    R.isError(r,:) = S.isError(run_idx); % Error: The sequence input was incorrect.
 
     for t=1:nTrials
-        realtime = S.startTimeReal(idx(t));
-        if realtime < 6 % to remove invalid onset times (e.g., '0s' or '1s')
-            continue
-        end
-        % R.onset(r,t) = (realtime + 1000 + S.RT(idx(t)))*0.001;
-        R.onset(r,t) = (realtime + 1000) * 0.001;
+        start_time = S.startTime(run_idx(t));
+
+        % R.onset(r,t) = (start_time + 1000 + S.RT(idx(t)))*0.001;
+        R.onset(r,t) = (start_time + 1000) * 0.001; % unit: 'second'
 
         % if S.RT(idx(t))==0
         %     R.dur(r,t)=0;  %% invalid trials 
@@ -84,7 +82,7 @@ for r=1:nRuns
             transS(r,t) = 8*i + j;
         end
     end
-    R.isValid(r,:) = (S.RT(idx)~=0);
+    R.isValid(r,:) = (S.RT(run_idx)~=0);
     R.MT(r,:) = S.MT(nTrials*(r-1)+1:nTrials*r); % (Hand) movement time
     R.RT(r,:) = S.RT(nTrials*(r-1)+1:nTrials*r); % (Hand) reaction time
 end

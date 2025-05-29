@@ -130,11 +130,13 @@ switch(what)
                 % case 0
                 %     cond_name = {'All trials'};  %% only for 9th run
                 case 1
+                    nointerest_idx = 9;
                     for c=1:n_cond; cond_name{c} = sprintf('Trial-state %d',c); end
-                    if n_cond==9 % R11 all cleared
+                    if n_cond==nointerest_idx % R11 had all cleared
                         cond_name{n_cond} = 'Non-Interest';
                     end
-                case 2 
+                case 2
+                    nointerest_idx = 9;
                     cond_name = {'MotorOnly-L','MotorOnly-S','CueOnly-L','CueOnly-S',...
                                 'BothRep-L','BothRep-S','NonRep-L','NonRep-S','Non-Interest'};
                 case 4
@@ -142,10 +144,11 @@ switch(what)
             end
 
             for c=1:n_cond  %% c : condition index
+                c_ = mod(c,nointerest_idx); % Remind that the cond value of the 9th regressor is 0.
                 J.sess(r).cond(c).name = cond_name{c};
-                J.sess(r).cond(c).onset = R.onset(r,find(R.cond(r,:)==c));
+                J.sess(r).cond(c).onset = R.onset(r,find(R.cond(r,:)==c_));
                 % J.sess(r).cond(c).duration = 0.001; % used fixed time, 2 secon
-                J.sess(r).cond(c).duration = R.dur(r,find(R.cond(r,:)==c));
+                J.sess(r).cond(c).duration = R.dur(r,find(R.cond(r,:)==c_));
                 % if glm==0
                 %     J.sess(1).cond(1).name = 'All trials';
                 %     J.sess(1).cond(1).onset = R.onset'+1;  %% added 1
