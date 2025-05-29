@@ -11,10 +11,24 @@ function R = construct_dsgmat(R, glm)
 %   R: cell
 %       Enhanced data field with GLM regressors
 
-nRuns = R.nRuns;
-nTrials = R.nTrials;
+% nRuns = R.nRuns;
+% nTrials = R.nTrials;
 
 switch glm
+    case 1
+    %% GLM3 : Trial State
+    % 0: (0,0), 1: (0,1), 2: (1,0), 3: (1,1), 4: (2,0), 5: (2,1), 6: (3,0), 7: (3,1)
+    
+    cond = R.TrialState+1; % The elements of TrialState would be a member of set [1:8].
+    cond(R.isError==1|R.isValid==0) = 0; % The 9-th TrialState: Non-interest (Incorrect)
+
+    labelReg = string(R.TrialState);
+    labelReg(cond==0) = "N"; % Non-interest
+
+    R.labelreg = labelReg;
+    R.cond = cond;
+    R.dur = repmat(2, size(cond)); % The durations of all regressors are set to 2 seconds.
+
     case 2
     %% GLM2 : Repetition Suppression
     % |(s,c)|(0,0)|(0,1)|(1,0)|(1,1)|(2,0)|(2,1)|(3,0)|(3,1)| 
@@ -70,21 +84,6 @@ switch glm
     labelReg(ismember(R.TransitionState, idxC)) = "C";
 
     % letter vs. spatial cue? which one? (current or previous)
-
-
-    case 3
-    %% GLM3 : Trial State
-    % 0: (0,0), 1: (0,1), 2: (1,0), 3: (1,1), 4: (2,0), 5: (2,1), 6: (3,0), 7: (3,1)
-    
-    cond = R.TrialState+1; % The elements of TrialState would be a member of set [0:7].
-    cond(R.isError==1|R.isValid==0) = 0; % The 9-th regressor: Non-interest
-
-    labelReg = string(R.TrialState);
-    labelReg(cond==0) = "N";
-
-    R.labelreg = labelReg;
-    R.cond = cond;
-    R.dur = repmat(2, size(cond)); % The durations of all regressors are set to 2 seconds.
 
 end
 

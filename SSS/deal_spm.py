@@ -1,15 +1,34 @@
-import platform
 from os.path import join
-from os import getcwd
+from glob import glob
+
 import numpy as np
-import h5py
-import re
-import SSS.util as ut
 import pandas as pd
 
+import re
+
+import h5py
+
+from SSS import util as ut
+
+def load_SPM(SPM):
+	"""
+	Output
+		SPM: h5py data
+			Data loaded from SPM.mat, the GLM result file processed using SPM.
+	"""
+	if isinstance(SPM, str):
+		file = h5py.File(SPM)
+		SPM = file['SPM']
+
+	return SPM
 
 def get_trials_per_sess(SPM):
-	SPM = ut.load_SPM(SPM)
+	"""
+	Output
+		tps: N-D numpy array
+			Output the number of trials for each session (run).
+	"""
+	SPM = load_SPM(SPM)
 
 	tmp = SPM['xsDes/Trials_per_session'][:]
 	#if tmp.dtype == np.uint16:
@@ -21,7 +40,14 @@ def get_trials_per_sess(SPM):
 	return tps
 
 def get_TR(SPM):
-	SPM = ut.load_SPM(SPM)
+	"""
+	Output
+		tr: float
+			The number of TRs
+		unit: string
+			The unit of TR
+	"""
+	SPM = load_SPM(SPM)
 
 	tmp = SPM['xsDes/Interscan_interval'][:]
 	tmp = np.reshape(tmp,-1)
@@ -37,7 +63,12 @@ def get_TR(SPM):
 	return tr, unit
 
 def get_column_head(SPM):
-	SPM = ut.load_SPM(SPM)
+	"""
+	Output
+		column_head: 1-D numpy array
+			Labels of the GLM betas of interest.
+	"""
+	SPM = load_SPM(SPM)
 
 	U = SPM['Sess/U']
 	nruns = len(U)
@@ -57,7 +88,12 @@ def get_column_head(SPM):
 	return np.array(column_head)
 
 def get_df_onset(SPM):
-	SPM = ut.load_SPM(SPM)
+	"""
+	Output
+		df_onset: pandas dataframe
+			Data storing the onset times of each trial.
+	"""
+	SPM = load_SPM(SPM)
 
 	column_head = get_column_head(SPM)
 
@@ -80,7 +116,18 @@ def get_df_onset(SPM):
 	return pd.DataFrame(df)
 
 def get_df_vec(SPM):
-	SPM = ut.load_SPM(SPM)
+	"""
+	A regressor in 'label (SPM/Sess/U/name)' that contains the string 'Non' is assigned condition = 0, and the rest are numbered in ascending order starting from 1.
+
+	Input
+		SPM: str / h5py
+			It is either the filename of the SPM.mat file or the data itself loaded using h5py.
+	
+	Output
+		df: Pandas DataFrame
+			A dataframe storing the condition vector and partition vector.
+	"""
+	SPM = load_SPM(SPM)
 	
 	df = get_df_onset(SPM).filter(items=['run','reg'])
 	nRuns = len(df.run.unique())
@@ -96,23 +143,81 @@ def get_df_vec(SPM):
 	df.cond_vec = df.cond_vec.astype(int)
 	
 	df.rename(columns={'run':'part_vec'}, inplace=True)
+	df = df.filter(items=['part_vec','cond_vec'])
 
-	return df.filter(items=['part_vec','cond_vec'])
+	column_head = get_column_head(SPM)
+	df['column_head'] = column_head
+
+	return df
 
 def get_SPM_X(SPM, run=1):
-	SPM = ut.load_SPM(SPM)
+	"""
+	Output
+		X: 2-D numpy array
+			Design matrix for the regressors of interest for each run.
+	"""
+	SPM = load_SPM(SPM)
 
 	nRuns = len(SPM['xX/K/row'])
 
 	## row
 	rr = run-1
 	ref = SPM['xX/K/row'][rr,0]
-	idx_r = SPM[ref][:].reshape(-1).astype(int)
+	idx_r = SPM[ref][:].reshape(-1).astype(int)-1
 
 	## column
-	iC = SPM['xX/iC'][:].reshape(-1).astype(int)
-	
+	iC = SPM['xX/iC'][:].reshape(-1).astype(int)-1
+	idx_c = iC.reshape(nRuns,-1)[rr,:]
 
 	X = SPM['xX/X'][:].T
 
 	return X[idx_r,:][:,idx_c]
+
+def get_df_X(SPM):
+	"""
+	Output
+		df: pandas dataframe
+			Design matrix for the regressors of interest for all runs.
+	"""
+	nTRs = 410
+	nRuns = 8
+
+	df = pd.DataFrame({'TR':np.arange(nTRs)+1})
+	for rr in range(nRuns):
+		run = rr+1
+		X = get_SPM_X(SPM, run=run)
+		df[run] = X.sum(axis=1)
+	df = df.melt(
+		id_vars = ['TR'],
+		value_vars = np.arange(nRuns)+1, var_name = 'run', value_name = 'X_sum'
+	)
+
+	return df
+
+def get_xBF_params(xBF):
+	"""
+	Output
+		xBF: dictionary
+			Data containing HRF information.
+	"""
+	if not isinstance(xBF, dict):
+		if isinstance(xBF, str):
+			fname = glob(xBF.replace('[','?'))[0]
+			file = h5py.File(fname)
+			xBF = file['xBF']
+
+    	# xBF = SPM['xBF']
+		xBF_ = {}
+		for key, feature in xBF.items():
+			tmp = feature[:].copy()
+			if np.ndim(tmp) > 1:
+				tmp = tmp.flatten()
+			if len(tmp) == 1:
+				tmp = tmp[0]
+			if tmp.dtype == np.uint16:
+				tmp = ''.join(map(chr, tmp))
+			xBF_[key] = tmp
+	else:
+		xBF_ = xBF
+
+	return xBF_

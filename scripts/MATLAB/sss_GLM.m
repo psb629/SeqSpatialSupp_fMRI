@@ -7,7 +7,7 @@ elseif ismac
 end
 sss_init;
 %% Scanner
-TR = 1;
+TR = 1; % unit: second
 numDummys  = 8;  % dummy images at the start of each run (these are discarded)
 
 %% Adjust this for experiment
@@ -98,9 +98,12 @@ switch(what)
         % R2 = construct_dsgmat(sprintf('R%02d',sn),glm);
         % R = combine_behavdata(R1,R2);
 
-        %% behavioural data
-        behav_data = fullfile(baseDir,behavDir,sprintf('sub-%s/ssh__%s.dat',subj_id,subj_id));
-        R = construct_dsgmat(behav_data,glm);
+        %% Load behavioural data
+        R = get_behav(subj_id);
+
+        %% Construct datafield for SPM
+        R = construct_dsgmat(R, glm);
+        
         n_cond = length(unique(R.cond));
 
         % % nTRs = [410*ones(1,10) 401 406 410 404 410 410 385]; % For S11
@@ -124,38 +127,40 @@ switch(what)
 
             % Setup names for conditions
             switch(glm)
-                case 0
-                    cond_name = {'All trials'};  %% only for 9th run
+                % case 0
+                %     cond_name = {'All trials'};  %% only for 9th run
                 case 1
-                    for c=1:n_cond; cond_name{c} = sprintf('Trial %d',c); end
+                    for c=1:n_cond; cond_name{c} = sprintf('Trial-state %d',c); end
+                    if n_cond==9 % R11 all cleared
+                        cond_name{n_cond} = 'Non-Interest';
+                    end
                 case 2 
                     cond_name = {'MotorOnly-L','MotorOnly-S','CueOnly-L','CueOnly-S',...
                                 'BothRep-L','BothRep-S','NonRep-L','NonRep-S','Non-Interest'};
-                case 3
-                    for c=1:n_cond; cond_name{c} = sprintf('Trial-State %d',c); end
-                    if n_cond==9 % R11 never wrong 
-                        cond_name{n_cond} = 'Non-Interest';
-                    end
                 case 4
                     cond_name = {'Letter','Spatial','Non-Interest'};
             end
 
             for c=1:n_cond  %% c : condition index
-                if glm==0
-                    J.sess(1).cond(1).name = 'All trials';
-                    J.sess(1).cond(1).onset = R.onset'+1;  %% added 1
-                    J.sess(1).cond(1).duration = 0.001;
-                elseif glm==1
-                    J.sess(r).cond(c).name = sprintf('trial %d',c);
-                    J.sess(r).cond(c).onset = R.onset(r,c);
-                    J.sess(r).cond(c).duration = 0.001; % used fixed time, 2 secon
-                    % J.sess(r).cond(c).duration = R.dur(r,c);
-                else
-                    J.sess(r).cond(c).name = cond_name{c};
-                    J.sess(r).cond(c).onset = R.onset(r,find(R.cond(r,:)==c));
-                    % J.sess(r).cond(c).duration = 0.001; % used fixed time, 2 secon
-                    J.sess(r).cond(c).duration = R.dur(r,find(R.cond(r,:)==c));
-                end
+                J.sess(r).cond(c).name = cond_name{c};
+                J.sess(r).cond(c).onset = R.onset(r,find(R.cond(r,:)==c));
+                % J.sess(r).cond(c).duration = 0.001; % used fixed time, 2 secon
+                J.sess(r).cond(c).duration = R.dur(r,find(R.cond(r,:)==c));
+                % if glm==0
+                %     J.sess(1).cond(1).name = 'All trials';
+                %     J.sess(1).cond(1).onset = R.onset'+1;  %% added 1
+                %     J.sess(1).cond(1).duration = 0.001;
+                % elseif glm==1
+                %     J.sess(r).cond(c).name = sprintf('trial %d',c);
+                %     J.sess(r).cond(c).onset = R.onset(r,c);
+                %     J.sess(r).cond(c).duration = 0.001; % used fixed time, 2 secon
+                %     % J.sess(r).cond(c).duration = R.dur(r,c);
+                % else
+                %     J.sess(r).cond(c).name = cond_name{c};
+                %     J.sess(r).cond(c).onset = R.onset(r,find(R.cond(r,:)==c));
+                %     % J.sess(r).cond(c).duration = 0.001; % used fixed time, 2 secon
+                %     J.sess(r).cond(c).duration = R.dur(r,find(R.cond(r,:)==c));
+                % end
 
                 % Define time modulator
                 % Add a regressor that account for modulation of betas over time
@@ -300,16 +305,16 @@ switch(what)
         %     imagesc(inv(cv)./(1./cv)); axis square; title('Covariance inflation factor'); colorbar;
         %     fprintf(1, '\nVariance estimates: %2.3f\nVariance regressors: %2.3f\nVariance inflation factor: %2.3f (the closer to 1, the better)\n', varE, varX, vif);
         % end
-        
-        %% Save the prewhitened design matrix
-        nKX = SPM.xX.nKX;
-        save(fullfile(dir_work,'nKX_data.mat'),'nKX')
 
         %% resave SPM
         tmp = load(fullfile(dir_work,'SPM.mat'));
         delete(fullfile(dir_work,'SPM.mat'));
         SPM = tmp.SPM;
         save(fullfile(dir_work,'SPM.mat'),'SPM','-v7.3');
+
+        %% Save the prewhitened design matrix
+        nKX = SPM.xX.nKX;
+        save(fullfile(dir_work,'nKX_data.mat'),'nKX');
 
     case 'GLM:tcontrast'                % 1ST-LEVEL GLM 3: Make t-contrast
         % Condition# 1:anodal 2:sham 3: cathodal

@@ -10,7 +10,7 @@ function R = get_behav(subj_id)
 %%%     output    %%%
 %%%%%%%%%%%%%%%%%%%%%
 %   R: cell
-%       Data field (including basic/fundametal properties)
+%       Data field (including basic/fundametal properties of behavioural data)
 
 %% Note
 % Introduction and explanation of the index,
@@ -24,8 +24,10 @@ seqID = [32451, 35124, 13254, 14523]; R.seqID = seqID;
 
 %% Load the behavioural data
 dir_behav = '/Volumes/Diedrichsen_data$/data/SeqSpatialSupp_fMRI/behavDir';
+dir_behav = 'F:\SeqSpatialSupp_fMRI/behavDir';
 behav_data = fullfile(dir_behav, sprintf('sub-%s/ssh__%s.dat',subj_id,subj_id));
-addpath('/Volumes/Diedrichsen_data$/matlab/dataframe')
+addpath(genpath('/Volumes/Diedrichsen_data$/matlab/dataframe'))
+addpath(genpath('\\wsl.localhost/ubuntu-22.04/home/sungbeenpark/github/dataframe'))
 S = dload(behav_data); % https://github.com/DiedrichsenLab/dataframe.git/util/dload.m
 
 %% The number of trials/runs
@@ -39,6 +41,8 @@ for r=1:nRuns
 %    dat_format = 'sub-S%.2d/ssh__S%.2d_%.2d.mov';
 %    mov = movload(fullfile(workdir, behavDir, sprintf(data_format, s, s, r)));
     idx = find(S.BN==r); % find the row corresponding to the r-th run.
+
+    %% Define Trial State
     tS(r,S.cueP(idx) == seqID(1) & S.seqType(idx)==0) = 0; % 0: (seq,cue)=(0,0)
     tS(r,S.cueP(idx) == seqID(1) & S.seqType(idx)==1) = 1; % 1: (seq,cue)=(0,1)
     tS(r,S.cueP(idx) == seqID(2) & S.seqType(idx)==0) = 2; % 2: (seq,cue)=(1,0)
@@ -48,9 +52,10 @@ for r=1:nRuns
     tS(r,S.cueP(idx) == seqID(4) & S.seqType(idx)==0) = 6; % 6: (seq,cue)=(3,0)
     tS(r,S.cueP(idx) == seqID(4) & S.seqType(idx)==1) = 7; % 7: (seq,cue)=(3,1)
 
+    %% Define Transition State
     transS(r,1) = -1; % The 1st trial doesn't have an index for the transition state.
 
-    R.isError(r,:) = S.isError(idx); % The sequence input was incorrect.
+    R.isError(r,:) = S.isError(idx); % Error: The sequence input was incorrect.
 
     for t=1:nTrials
         % R.onset(r,t) = (S.startTimeReal(idx(t)) + 1000 + S.RT(idx(t)))*0.001;
@@ -68,26 +73,29 @@ for r=1:nRuns
         % end
 
         if t>1
-            % The index of transition state for idx_i -> idx_j: 8*i + j
+            % The index of transition state for idx_i (=t-1) -> idx_j (=t): 8*i + j
             i = tS(r,t-1);
             j = tS(r,t); 
             transS(r,t) = 8*i + j;
         end
     end
     R.isValid(r,:) = (S.RT(idx)~=0);
-    R.MT(r,:) = S.MT(nTrials*(r-1)+1:nTrials*r); % movement time
-    R.RT(r,:) = S.RT(nTrials*(r-1)+1:nTrials*r); % reaction time
+    R.MT(r,:) = S.MT(nTrials*(r-1)+1:nTrials*r); % (Hand) movement time
+    R.RT(r,:) = S.RT(nTrials*(r-1)+1:nTrials*r); % (Hand) reaction time
 end
 
 R.TrialState = tS;
 R.TransitionState = transS;
 
+%% Sequence Index
+% 0: 32451, 1: 35124, 2: 13254, 3: 14523
 R.idxSeq = zeros(nRuns, nTrials);
 R.idxSeq(tS==0 | tS==1) = 0;
 R.idxSeq(tS==2 | tS==3) = 1;
 R.idxSeq(tS==4 | tS==5) = 2;
 R.idxSeq(tS==6 | tS==7) = 3;
 
+% 0: Letter, 1: Spatial
 R.idxCue = zeros(nRuns, nTrials);
 R.idxCue(tS==0 | tS==2 | tS==4 | tS==6) = 0;
 R.idxCue(tS==1 | tS==3 | tS==5 | tS==7) = 1;

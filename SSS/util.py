@@ -1,9 +1,9 @@
-import sys
 import platform
-from os.path import join, exists, abspath
+
+from os.path import join
 from os import getcwd
+
 import numpy as np
-import h5py
 
 def get_dir_SSS():
 	dir_current = getcwd().replace('\\','/')
@@ -31,10 +31,24 @@ def get_dir_root():
 
 	return dir_root
 
-def get_dir_glm(glm):
+def get_dir_anat():
 	dir_root = get_dir_root()
 
-	return join(dir_root,glm)
+	return join(dir_root,'anatomicals')
+
+def get_dir_epi():
+	dir_root = get_dir_root()
+
+	return join(dir_root,'imaging_data')
+
+def get_dir_glm(glm):
+	if isinstance(glm, int):
+		glm_ = 'glm_%d'%glm
+	else:
+		glm_ = glm
+	dir_root = get_dir_root()
+
+	return join(dir_root,glm_)
 
 def get_dir_surf():
 	dir_root = get_dir_root()
@@ -56,18 +70,7 @@ def get_list_sn():
 
 	return np.array(['%02d'%(ii+1) for ii in nn])
 
-def get_list_roi():
-
-	return np.array(['S1', 'M1', 'PMd', 'PMv', 'SMA', 'V1', 'SPLa', 'SPLp'])
-
 def get_S_id(subj):
 
 	return subj.replace('R','S')
-
-def load_SPM(SPM):
-	if isinstance(SPM, str):
-		file = h5py.File(SPM)
-		SPM = file['SPM']
-
-	return SPM
 
