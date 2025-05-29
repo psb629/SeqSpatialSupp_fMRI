@@ -151,7 +151,7 @@ def get_df_window_y(subj, glm, roi, param, pre=10, post=20, TR=1):
 		)
 
 	lines = {
-		'run':[], 'trial':[], 'onset':[], 'TR':[], 'y':[], 'hue':[]
+		'run':[], 'trial':[], 'TR':[], 'y':[], 'hue':[]
 	}
 	for rr, onsets in enumerate(onsets_by_run):
 		run = rr+1
@@ -175,11 +175,10 @@ def get_df_window_y(subj, glm, roi, param, pre=10, post=20, TR=1):
 					TR = idx - pre
 					lines['run'].append(run)
 					lines['trial'].append(trial)
-					lines['onset'].append(onset)
 					lines['TR'].append(TR)
 					lines['hue'].append(hue)
 					lines['y'].append(y)
 
 	df_window_y = pd.DataFrame(lines)
 
-	return df_window_y, df_onset
+	return df_window_y, np.array(onsets_by_run)
