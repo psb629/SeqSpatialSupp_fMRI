@@ -128,8 +128,9 @@ def get_df_window_y(subj, glm, roi, param, pre=10, post=20, TR=1):
 	## load onset times
 	dir_glm = ut.get_dir_glm(glm)
 	SPM = join(dir_glm,subj,'SPM.mat')
-	df_onset = deal_spm.get_df_onset(SPM)
-
+ 	# df_onset = deal_spm.get_df_onset(SPM)
+	onsets_by_run = deal_spm.get_concat_onset(SPM)
+	
 	## load y
 	df_y = get_df_y(
 		subj=subj, glm=glm, roi=roi, param=param,
@@ -137,17 +138,13 @@ def get_df_window_y(subj, glm, roi, param, pre=10, post=20, TR=1):
 	)
 
 	nTRs = len(df_y.TR.unique())
-	runs = df_onset.run.unique()
+	# runs = df_onset.run.unique()
 
 	## shape=(# runs, # trials)
 	onset_idxs_by_run = []
-	for run in runs:
+	for onsets in onsets_by_run:
 		onset_idxs_by_run.append(
-			np.round(
-				np.sort(
-					np.concatenate(df_onset[df_onset.run==run].onset.values) / TR
-				)
-			).astype(int)
+			np.round(onsets/TR).astype(int)
 		)
 
 	lines = {

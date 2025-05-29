@@ -115,6 +115,21 @@ def get_df_onset(SPM):
 
 	return pd.DataFrame(df)
 
+def get_concat_onset(SPM):
+	df_onset = get_df_onset(SPM)
+
+	runs = df_onset.run.unique()
+	onsets_by_run = []
+	for run in runs:
+		onsets = np.sort(
+			np.concatenate(
+				df_onset[df_onset.run==run].onset.values
+			)
+		)
+		onsets_by_run.append(onsets)
+	
+	return onsets_by_run
+
 def get_df_vec(SPM):
 	"""
 	A regressor in 'label (SPM/Sess/U/name)' that contains the string 'Non' is assigned condition = 0, and the rest are numbered in ascending order starting from 1.
