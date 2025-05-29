@@ -140,9 +140,9 @@ def get_df_window_y(subj, glm, roi, param, pre=10, post=20, TR=1):
 	runs = df_onset.run.unique()
 
 	## shape=(# runs, # trials)
-	onsets_by_run = []
+	onset_idxs_by_run = []
 	for run in runs:
-		onsets_by_run.append(
+		onset_idxs_by_run.append(
 			np.round(
 				np.sort(
 					np.concatenate(df_onset[df_onset.run==run].onset.values) / TR
@@ -153,10 +153,9 @@ def get_df_window_y(subj, glm, roi, param, pre=10, post=20, TR=1):
 	lines = {
 		'run':[], 'trial':[], 'TR':[], 'y':[], 'hue':[]
 	}
-	for rr, onsets in enumerate(onsets_by_run):
+	for rr, onset_idxs in enumerate(onset_idxs_by_run):
 		run = rr+1
-		onsets_idx = np.round(onsets).astype(int)
-		for tt, idx in enumerate(onsets_idx):
+		for tt, idx in enumerate(onset_idxs):
 			trial = tt+1
 			start_idx = int(idx - pre)
 			end_idx = int(idx + post + 1)
