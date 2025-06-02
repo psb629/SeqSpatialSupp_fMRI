@@ -5,6 +5,19 @@ from os import getcwd
 
 import numpy as np
 
+def convert_pval_to_star(pvalue):
+	res = "ns"
+	if pvalue <= 0.0001:
+		res = "****"
+	elif pvalue <= 0.001:
+		res = "***"
+	elif pvalue <= 0.01:
+		res = "**"
+	elif pvalue <= 0.05:
+		res = "*"
+	
+	return res
+
 def get_dir_SSS():
 	dir_current = getcwd().replace('\\','/')
 
@@ -30,6 +43,11 @@ def get_dir_root():
 		dir_root = join('F:/SeqSpatialSupp_fMRI')
 
 	return dir_root
+
+def get_dir_behav():
+	dir_root = get_dir_root()
+
+	return join(dir_root,'behavDir')
 
 def get_dir_anat():
 	dir_root = get_dir_root()
@@ -74,3 +92,10 @@ def get_S_id(subj):
 
 	return subj.replace('R','S')
 
+def get_list_cue():
+
+	return np.array(['Letter', 'Spatial'])
+
+def get_list_seq():
+
+	return np.array([32451, 35124, 13254, 14523])
