@@ -215,9 +215,9 @@ switch(what)
                 % filling in "reginfo"
                 TT.sn        = sn;
                 TT.run       = run;
-                TT.task_name = regressors(regr);
-                TT.task      = regr;
-                TT.taskUni   = itaskUni;
+                TT.reg = regressors(regr);
+                TT.cond      = regr;
+                TT.regIdx    = itaskUni;
                 % TT.n_rep     = sum(idx);
         
                 T = addstruct(T, TT);
