@@ -63,7 +63,8 @@ switch(what)
         sss_GLM('GLM:make_event_tsv','sn',sn,'glm',glm);
         sss_GLM('GLM:design','sn',sn,'glm',glm,'nTRs',nTRs,'hrf_params',hrf_params);
         sss_GLM('GLM:estimate','sn',sn,'glm',glm);
-        sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map',map); % https://github.com/nno/surfing.git, spm nanmean
+        sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','beta'); % https://github.com/nno/surfing.git, spm nanmean
+        sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','ResMS'); % https://github.com/nno/surfing.git, spm nanmean
     
     case 'GLM:init'
         D = dload(fullfile(baseDir,behavDir,sprintf('sub-%s/behav_info.tsv',subj_id)));
@@ -355,6 +356,182 @@ switch(what)
         nKX = SPM.xX.nKX;
         save(fullfile(dir_work,'nKX_data.mat'),'nKX');
 
+    case 'WB:vol2surf' % map indiv vol contrasts (.nii) onto surface (.gii)
+        dir_work = fullfile(baseDir,wbDir,glmDir);
+        if (~exist(dir_work,'dir'))
+            mkdir(dir_work);
+        end
+        dir_glm = fullfile(baseDir,glmDir,subj_id);
+
+        V = {};
+        cols = {};
+        switch map
+            case 'beta' % beta maps (univariate GLM)
+                load(fullfile(dir_glm,'SPM.mat'));
+                fnames = dir(fullfile(dir_glm,'beta_*.nii'));
+                fnames = fnames(SPM.xX.iC);
+                for f = 1:length(fnames)
+                    V{f} = fullfile(fnames(f).folder, fnames(f).name);
+                    cols{f} = fnames(f).name;
+                end
+            case 'ResMS' % residual
+                V{1} = fullfile(dir_glm,'ResMS.nii');
+                cols{1} = 'ResMS.nii';
+            case 't' % t-values maps (univariate GLM)
+                fnames      = cell(1,numel(SPM.xCon));
+                con_name    = cell(1,numel(SPM.xCon));
+                for j=1:numel(fnames)
+                    fnames{j}   = fullfile(subjGLM, sprintf('spmT_%s.nii', SPM.xCon(j).name));
+                    con_name{j} = SPM.xCon(j).name;
+                end
+            case 'con' % contrast beta maps (univariate GLM)
+                fnames      = cell(1,numel(SPM.xCon));
+                con_name    = cell(1,numel(SPM.xCon));
+                for j=1:numel(fnames)
+                    fnames{j}   = fullfile(subjGLM, sprintf('con_%s.nii', SPM.xCon(j).name));
+                    con_name{j} = SPM.xCon(j).name;
+                end    
+            case 'psc' % percent signal change maps (univariate GLM)
+                fnames      = cell(1,numel(SPM.xCon));
+                con_name    = cell(1,numel(SPM.xCon));
+                for j=1:numel(fnames)
+                    fnames{j}   = fullfile(subjGLM, sprintf('psc_%s.nii', SPM.xCon(j).name));
+                    con_name{j} = SPM.xCon(j).name;
+                end
+            case 'rdm'
+                fname{1} = fullfile(baseDir, 'patterns', sprintf('S%02d', sn),'rdm.nii');
+                con_name{1} = 'rdm';
+        end
+
+        for h = [1 2]
+            white = fullfile(baseDir,wbDir,S_id,sprintf('%s.%s.white.32k.surf.gii',S_id,hem{h}));
+            pial = fullfile(baseDir,wbDir,S_id,sprintf('%s.%s.pial.32k.surf.gii',S_id,hem{h}));
+            C1 = gifti(white);
+            C2 = gifti(pial);
+          
+            output = fullfile(dir_work,sprintf('%s.%s.glm_%d.%s.func.gii',subj_id,hem{h},glm,map));
+            G = surf_vol2surf(C1.vertices, C2.vertices, V, 'anatomicalStruct', hname{h}, 'exclude_thres', 0.9, 'faces', C2.faces, 'ignore_zeros', 0);
+            G = surf_makeFuncGifti(G.cdata,'anatomicalStruct', hname{h}, 'columnNames', cols);
+            save(G, output);
+
+            fprintf('mapped %s %s glm_%d \n', subj_id, hem{h}, glm);
+        end
+
+    case 'GLM:HRF_tuner'
+        %% HRF tunning
+        params = mat2str(hrf_params(1:2));
+        fprintf('GLM:HRF_tuner - %s %s\n',subj_id,params);
+        dir_output = fullfile(baseDir,glmDir,subj_id,'hrf_tune');
+        if (~exist(dir_output,'dir'))
+            mkdir(dir_output);
+        end
+
+        %% load SPM.mat (GLM information)
+        SPM = load(fullfile(baseDir,glmDir,subj_id,'SPM.mat'));
+        SPM = SPM.SPM;
+
+        %% Get the hemodynamic response in micro-time resolution
+        SPM.xBF.UNITS    = 'secs'; % units of the hrf
+        SPM.xBF.T        = 16; % microtime resolution: number of time samples per scan
+        SPM.xBF.dt       = SPM.xY.RT/SPM.xBF.T;  % Delta-t per sample 
+        SPM.xBF.T0       = 1; % first time bin
+        SPM.xBF.name     = 'fitted_hrf';
+        SPM.xBF.order    = 1;
+        SPM.xBF.Volterra = 1;  % volterra expansion order?
+        SPM.xBF.params = hrf_params;
+        SPM.xBF.bf = spm_hrf(SPM.xBF.dt,hrf_params);
+        % p(1) - delay of response (relative to onset)          6
+        % p(2) - delay of undershoot (relative to onset)       16
+        % p(3) - dispersion of response                         1
+        % p(4) - dispersion of undershoot                       1
+        % p(5) - ratio of response to undershoot                6
+        % p(6) - onset {seconds}                                0
+        % p(7) - length of kernel {seconds}                    32
+        SPM.xBF.length = size(SPM.xBF.bf,1)*SPM.xBF.dt; % support in seconds 
+        
+        % Reconvolve the design matrix with new HRF
+        SPM = spmj_glm_convolve(SPM);
+
+        %% 피험자의 surface 공간에서 각 ROI의 node (2-D) 정보 
+        fname = fullfile(baseDir,roiDir,S_id,sprintf('%s.Task_regions.mat',S_id));
+        R = load(fname); R = R.R;
+
+        %% 피험자 EPI 의 3-D 정보
+        VolFile = R{1,1}.image;
+        % VolFile = fullfile(baseDir,glmDir,subj_id,'mask.nii');
+        V = spm_vol(VolFile);
+
+        for i=1:length(R)
+            roi = R{i}.name;
+            area = 'OTHER';
+
+            hemisphere = R{i}.hem;
+            % if hemisphere=='L'
+            %     area = [roi '_LEFT'];
+            % elseif hemisphere=='R'
+            %     area = [roi '_RIGHT'];
+            % end
+
+            %% load y_raw
+            dir_yraw = fullfile(baseDir,roiDir,subj_id);
+            fname = fullfile(dir_yraw, sprintf('cifti.%s.%s.%s.y_raw.dtseries.nii',hemisphere,subj_id,roi));
+            cii = cifti_read(fname);
+            Yraw = double(cii.cdata(:,:)');
+            clear cii
+            
+            % Restimate the betas and get predicted and residual response
+            [beta, Yhat, Yres] = spmj_glm_fit(SPM,Yraw);
+
+            %% y_hat
+            cii = region_make_cifti(R{i},V,'data',Yhat','dtype','series','struct',area,'TR',1);
+            fname = fullfile(dir_output, sprintf('cifti.%s.%s.%s.%s.%s.y_hat.dtseries.nii',hemisphere,glmDir,params,subj_id,roi));
+            cifti_write(cii, fname);
+            clear cii
+
+            %% y_res
+            cii = region_make_cifti(R{i},V,'data',Yres','dtype','series','struct',area,'TR',1);
+            fname = fullfile(dir_output, sprintf('cifti.%s.%s.%s.%s.%s.y_res.dtseries.nii',hemisphere,glmDir,params,subj_id,roi));
+            cifti_write(cii, fname);
+            clear cii
+
+            %% beta
+            cii = region_make_cifti(R{i},V,'data',beta(SPM.xX.iC,:)','dtype','scalars','struct',area,'TR',1);
+            fname = fullfile(dir_output, sprintf('cifti.%s.%s.%s.%s.%s.beta.dscalar.nii',hemisphere,glmDir,params,subj_id,roi));
+            cifti_write(cii, fname);
+            clear cii
+        end
+        xBF = SPM.xBF;
+        save(fullfile(dir_output,sprintf('xBF_%s.mat',params)),'xBF','-v7.3');
+
+        %% save vector information
+        % % column head
+        % tmp = {};
+        % for run=1:length(SPM.Sess)
+        %     tmp = cat(2,tmp,SPM.Sess(run).U(:).name);
+        % end
+        % vectors = tmp;
+        % 
+        % for run=1:length(SPM.Sess)
+        %     cols = SPM.Sess(run).col;
+        %     % partition vector
+        %     vectors(2,cols) = {run};
+        % 
+        %     for col=cols
+        %         idx = mod(col,length(cols));
+        %         if idx==0
+        %             idx = idx+length(cols);
+        %         end
+        %         % condition vector
+        %         tmp = cellfun(@(x) sscanf(x,'Trial-State %d'), SPM.Sess(run).U(idx).name, 'UniformOutput', false);
+        %         if ~isempty(tmp{1})
+        %             vectors(3,col) = tmp;
+        %         else
+        %             vectors(3,col) = {0};
+        %         end
+        %     end
+        % end
+        % save(fullfile(dir_output,sprintf('vec_%s.mat',params)),'vectors','-v7.3');
+
     case 'GLM:tcontrast'                % 1ST-LEVEL GLM 3: Make t-contrast
         % Condition# 1:anodal 2:sham 3: cathodal
         % 1: overall movement
@@ -638,121 +815,6 @@ switch(what)
         end
 
         fprintf('Subject %s - Done\n', subj_id);
-
-    case 'GLM:HRF_tuner'
-        %% HRF tunning
-        params = mat2str(hrf_params(1:2));
-        fprintf('GLM:HRF_tuner - %s %s\n',subj_id,params);
-        dir_output = fullfile(baseDir,glmDir,subj_id,'hrf_tune');
-        if (~exist(dir_output,'dir'))
-            mkdir(dir_output);
-        end
-
-        %% load SPM.mat (GLM information)
-        SPM = load(fullfile(baseDir,glmDir,subj_id,'SPM.mat'));
-        SPM = SPM.SPM;
-
-        %% Get the hemodynamic response in micro-time resolution
-        SPM.xBF.UNITS    = 'secs'; % units of the hrf
-        SPM.xBF.T        = 16; % microtime resolution: number of time samples per scan
-        SPM.xBF.dt       = SPM.xY.RT/SPM.xBF.T;  % Delta-t per sample 
-        SPM.xBF.T0       = 1; % first time bin
-        SPM.xBF.name     = 'fitted_hrf';
-        SPM.xBF.order    = 1;
-        SPM.xBF.Volterra = 1;  % volterra expansion order?
-        SPM.xBF.params = hrf_params;
-        SPM.xBF.bf = spm_hrf(SPM.xBF.dt,hrf_params);
-        % p(1) - delay of response (relative to onset)          6
-        % p(2) - delay of undershoot (relative to onset)       16
-        % p(3) - dispersion of response                         1
-        % p(4) - dispersion of undershoot                       1
-        % p(5) - ratio of response to undershoot                6
-        % p(6) - onset {seconds}                                0
-        % p(7) - length of kernel {seconds}                    32
-        SPM.xBF.length = size(SPM.xBF.bf,1)*SPM.xBF.dt; % support in seconds 
-        
-        % Reconvolve the design matrix with new HRF
-        SPM = spmj_glm_convolve(SPM);
-
-        %% 피험자의 surface 공간에서 각 ROI의 node (2-D) 정보 
-        fname = fullfile(baseDir,roiDir,S_id,sprintf('%s.Task_regions.mat',S_id));
-        R = load(fname); R = R.R;
-
-        %% 피험자 EPI 의 3-D 정보
-        VolFile = R{1,1}.image;
-        % VolFile = fullfile(baseDir,glmDir,subj_id,'mask.nii');
-        V = spm_vol(VolFile);
-
-        for i=1:length(R)
-            roi = R{i}.name;
-            area = 'OTHER';
-
-            hemisphere = R{i}.hem;
-            % if hemisphere=='L'
-            %     area = [roi '_LEFT'];
-            % elseif hemisphere=='R'
-            %     area = [roi '_RIGHT'];
-            % end
-
-            %% load y_raw
-            dir_yraw = fullfile(baseDir,roiDir,subj_id);
-            fname = fullfile(dir_yraw, sprintf('cifti.%s.%s.%s.y_raw.dtseries.nii',hemisphere,subj_id,roi));
-            cii = cifti_read(fname);
-            Yraw = double(cii.cdata(:,:)');
-            clear cii
-            
-            % Restimate the betas and get predicted and residual response
-            [beta, Yhat, Yres] = spmj_glm_fit(SPM,Yraw);
-
-            %% y_hat
-            cii = region_make_cifti(R{i},V,'data',Yhat','dtype','series','struct',area,'TR',1);
-            fname = fullfile(dir_output, sprintf('cifti.%s.%s.%s.%s.%s.y_hat.dtseries.nii',hemisphere,glmDir,params,subj_id,roi));
-            cifti_write(cii, fname);
-            clear cii
-
-            %% y_res
-            cii = region_make_cifti(R{i},V,'data',Yres','dtype','series','struct',area,'TR',1);
-            fname = fullfile(dir_output, sprintf('cifti.%s.%s.%s.%s.%s.y_res.dtseries.nii',hemisphere,glmDir,params,subj_id,roi));
-            cifti_write(cii, fname);
-            clear cii
-
-            %% beta
-            cii = region_make_cifti(R{i},V,'data',beta(SPM.xX.iC,:)','dtype','scalars','struct',area,'TR',1);
-            fname = fullfile(dir_output, sprintf('cifti.%s.%s.%s.%s.%s.beta.dscalar.nii',hemisphere,glmDir,params,subj_id,roi));
-            cifti_write(cii, fname);
-            clear cii
-        end
-        xBF = SPM.xBF;
-        save(fullfile(dir_output,sprintf('xBF_%s.mat',params)),'xBF','-v7.3');
-
-        %% save vector information
-        % column head
-        tmp = {};
-        for run=1:length(SPM.Sess)
-            tmp = cat(2,tmp,SPM.Sess(run).U(:).name);
-        end
-        vectors = tmp;
-        
-        for run=1:length(SPM.Sess)
-            cols = SPM.Sess(run).col;
-            % partition vector
-            vectors(2,cols) = {run};
-
-            for col=cols
-                idx = mod(col,length(cols));
-                if idx==0
-                    idx = idx+length(cols);
-                end
-                % condition vector
-                tmp = cellfun(@(x) sscanf(x,'Trial-State %d'), SPM.Sess(run).U(idx).name, 'UniformOutput', false);
-                if ~isempty(tmp{1})
-                    vectors(3,col) = tmp;
-                else
-                    vectors(3,col) = {0};
-                end
-            end
-        end
-        save(fullfile(dir_output,sprintf('vec_%s.mat',params)),'vectors','-v7.3');
         
     case 'MNI:norm_write'
         vararginoptions(varargin, {'sn','glm'}); %% 
@@ -777,68 +839,7 @@ switch(what)
 
 
     
-        % end
-
-    case 'WB:vol2surf' % map indiv vol contrasts (.nii) onto surface (.gii)
-        dir_work = fullfile(baseDir,wbDir,glmDir);
-        if (~exist(dir_work,'dir'))
-            mkdir(dir_work);
-        end
-        dir_glm = fullfile(baseDir,glmDir,subj_id);
-
-        V = {};
-        cols = {};
-        switch map
-            case 'beta' % beta maps (univariate GLM)
-                load(fullfile(dir_glm,'SPM.mat'));
-                fnames = dir(fullfile(dir_glm,'beta_*.nii'));
-                fnames = fnames(SPM.xX.iC);
-                for f = 1:length(fnames)
-                    V{f} = fullfile(fnames(f).folder, fnames(f).name);
-                    cols{f} = fnames(f).name;
-                end
-            case 't' % t-values maps (univariate GLM)
-                fnames      = cell(1,numel(SPM.xCon));
-                con_name    = cell(1,numel(SPM.xCon));
-                for j=1:numel(fnames)
-                    fnames{j}   = fullfile(subjGLM, sprintf('spmT_%s.nii', SPM.xCon(j).name));
-                    con_name{j} = SPM.xCon(j).name;
-                end
-            case 'con' % contrast beta maps (univariate GLM)
-                fnames      = cell(1,numel(SPM.xCon));
-                con_name    = cell(1,numel(SPM.xCon));
-                for j=1:numel(fnames)
-                    fnames{j}   = fullfile(subjGLM, sprintf('con_%s.nii', SPM.xCon(j).name));
-                    con_name{j} = SPM.xCon(j).name;
-                end    
-            case 'psc' % percent signal change maps (univariate GLM)
-                fnames      = cell(1,numel(SPM.xCon));
-                con_name    = cell(1,numel(SPM.xCon));
-                for j=1:numel(fnames)
-                    fnames{j}   = fullfile(subjGLM, sprintf('psc_%s.nii', SPM.xCon(j).name));
-                    con_name{j} = SPM.xCon(j).name;
-                end
-            case 'rdm'
-                fname{1} = fullfile(baseDir, 'patterns', sprintf('S%02d', sn),'rdm.nii');
-                con_name{1} = 'rdm';
-            case 'res' % residual
-                fnames{1} = fullfile(subjGLM, 'ResMS.nii');
-                con_name{1} = 'ResMS';
-        end
-
-        for h = [1 2]
-            white = fullfile(baseDir,wbDir,S_id,sprintf('%s.%s.white.32k.surf.gii',S_id,hem{h}));
-            pial = fullfile(baseDir,wbDir,S_id,sprintf('%s.%s.pial.32k.surf.gii',S_id,hem{h}));
-            C1 = gifti(white);
-            C2 = gifti(pial);
-          
-            output = fullfile(dir_work,sprintf('%s.%s.glm%d.%s.func.gii',subj_id,hem{h},glm,map));
-            G = surf_vol2surf(C1.vertices, C2.vertices, V, 'anatomicalStruct', hname{h}, 'exclude_thres', 0.9, 'faces', C2.faces, 'ignore_zeros', 0);
-            G = surf_makeFuncGifti(G.cdata,'anatomicalStruct', hname{h}, 'columnNames', cols);
-            save(G, output);
-
-            fprintf('mapped %s %s glm%d \n', subj_id, hem{h}, glm);
-        end    
+        % end    
 
     case 'WB:vol2surf_group' % map group contrasts on surface (.gifti)
         %sn = subj_vec;
