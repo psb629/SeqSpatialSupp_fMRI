@@ -52,18 +52,6 @@ def cmap_for_cbar(label_list, cmap):
 
 	return cmap_
 
-def get_WPM(subj, glm):
-	dir_surf = ut.get_dir_surf()
-	dir_glm = join(ut.get_dir_root(),glm)
-	S_id = ut.get_S_id(subj)
-
-	white = join(dir_surf,S_id,'%s.L.white.32k.surf.gii'%S_id)
-	pial = join(dir_surf,S_id,'%s.L.pial.32k.surf.gii'%S_id)
-
-	mask = join(dir_glm,subj,'mask.nii')
-
-	return white, pial, mask
-
 def plot_SPM_X(subj, glm, run=1):
 	dir_glm = join(ut.get_dir_root(),glm)
 	SPM = join(dir_glm,subj,'SPM.mat')

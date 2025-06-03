@@ -4,6 +4,7 @@ from os.path import join
 from os import getcwd
 
 import numpy as np
+import pandas as pd
 
 def convert_pval_to_star(pvalue):
 	res = "ns"
@@ -99,3 +100,10 @@ def get_list_cue():
 def get_list_seq():
 
 	return np.array([32451, 35124, 13254, 14523])
+
+def get_reginfo(subj, glm):
+	dir_glm = get_dir_glm(glm)
+	reginfo = join(dir_glm, subj, 'reginfo.tsv')
+	df = pd.read_csv(reginfo, delimiter='\t')
+
+	return df

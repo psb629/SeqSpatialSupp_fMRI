@@ -10,6 +10,10 @@ from SSS import deal_spm
 from nilearn import image
 import nibabel as nb
 
+import surfAnalysisPy as surf
+import Functional_Fusion.atlas_map as am
+import Functional_Fusion.reliability as rel
+
 def get_list_roi():
 
 	return np.array(['S1', 'M1', 'PMd', 'PMv', 'SMA', 'V1', 'SPLa', 'SPLp'])
@@ -178,3 +182,30 @@ def get_df_window_y(subj, glm, roi, param, pre=10, post=20, TR=1):
 	df_window_y = pd.DataFrame(lines)
 
 	return df_window_y
+
+def get_WPM(subj, glm):
+	dir_surf = ut.get_dir_surf()
+	dir_glm = ut.get_dir_glm(glm)
+	S_id = ut.get_S_id(subj)
+
+	white = join(dir_surf,S_id,'%s.L.white.32k.surf.gii'%S_id)
+	pial = join(dir_surf,S_id,'%s.L.pial.32k.surf.gii'%S_id)
+
+	mask = join(dir_glm,subj,'mask.nii')
+
+	return white, pial, mask
+
+def get_prewhitened_beta(subj, glm):
+	dir_surf = ut.get_dir_surf()
+
+	betas = nb.load(join(dir_surf,'glm_%d/%s.L.glm_%d.beta.func.gii'%(glm,subj,glm)))
+	res = nb.load(join(dir_surf,'glm_%d/%s.L.glm_%d.ResMS.func.gii'%(glm,subj,glm)))
+
+	beta_whiten = []
+	for beta in betas.darrays:
+		beta_whiten.append(
+			beta.data/(np.sqrt(res.darrays[0].data)+1.e-14)
+		)
+	beta_whiten = np.array(beta_whiten)
+	
+	return np.array(beta_whiten)
