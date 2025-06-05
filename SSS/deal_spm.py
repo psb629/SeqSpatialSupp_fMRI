@@ -236,3 +236,33 @@ def get_xBF_params(xBF):
 		xBF_ = xBF
 
 	return xBF_
+
+def convert_param_to_hrf(params=None, type='list'):
+	# p(1) - delay of response (relative to onset)          6
+	# p(2) - delay of undershoot (relative to onset)       16
+	# p(3) - dispersion of response                         1
+	# p(4) - dispersion of undershoot                       1
+	# p(5) - ratio of response to undershoot                6
+	# p(6) - onset {seconds}                                0
+	# p(7) - length of kernel {seconds}                    32
+
+	hrf_default = [6, 16, 1, 1, 6, 0, 32]
+
+	hrf = hrf_default
+	
+	if not params==None:
+		for ii, p in enumerate(params):
+			if not isinstance(p,str):
+				hrf[ii] = p
+			else:
+				continue
+	
+	if type=='list':
+		res = hrf
+	elif type=='str':
+		res = '['
+		for p in hrf:
+			res = res + '%d,'%p
+		res = res[:-1] + ']'
+
+	return res

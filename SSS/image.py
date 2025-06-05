@@ -75,14 +75,10 @@ def load_hrf_tune(subj, glm, roi, param=[6,16], hemi='L', map_='beta'):
 	glm_ = dir_glm.split('/')[-1]
 	dir_work = join(dir_glm,subj,'hrf_tune')
 
-	if np.array(param).dtype == 'int64':
-		param_ = str(param).replace(' ','').replace(',',' ')
-	else:
-		param_ = param
-	param_ = param_.replace(']','?')
+	param_ = deal_spm.convert_param_to_hrf(params=param, type='str')
 
 	hemi_ = hemi.upper()
-	fname = glob(join(dir_work,'cifti.%s.%s.%s.%s.%s.%s.*.nii'%(hemi_,glm_,param_,subj,roi,map_)))[0]
+	fname = glob(join(dir_work,'cifti.%s.%s.%s.%s.%s.%s.d*.nii'%(hemi_,glm_,param_.replace('[','?'),subj,roi,map_)))[0]
 	cii = nb.load(fname)
 
 	return cii

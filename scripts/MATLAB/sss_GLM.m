@@ -91,7 +91,8 @@ switch(what)
 
         for idx_s = 1:length(sequences)
             for idx_c = 1:length(cues)
-                row_idxs = ismember(D.cue,cues(idx_c)) & ismember(D.sequence,sequences(idx_s)) & D.TN<=64;
+                % row_idxs = ismember(D.cue,cues(idx_c)) & ismember(D.sequence,sequences(idx_s)) & D.TN<=64;
+                row_idxs = ismember(D.cue,cues(idx_c)) & ismember(D.sequence,sequences(idx_s));
 
                 events.BN = [events.BN; D.BN(row_idxs)];
                 events.TN = [events.TN; D.TN(row_idxs)];
@@ -419,8 +420,8 @@ switch(what)
 
     case 'GLM:HRF_tuner'
         %% HRF tunning
-        params = mat2str(hrf_params(1:2));
-        fprintf('GLM:HRF_tuner - %s %s\n',subj_id,params);
+        % params = mat2str(hrf_params(1:6));
+        % fprintf('GLM:HRF_tuner - %s %s\n',subj_id,params);
         dir_output = fullfile(baseDir,glmDir,subj_id,'hrf_tune');
         if (~exist(dir_output,'dir'))
             mkdir(dir_output);
@@ -481,6 +482,12 @@ switch(what)
             
             % Restimate the betas and get predicted and residual response
             [beta, Yhat, Yres] = spmj_glm_fit(SPM,Yraw);
+
+            params = sprintf('[%d',hrf_params(1));
+            for ii=2:length(hrf_params)
+                params = [params sprintf(',%d',hrf_params(ii))];
+            end
+            params = [params ']'];
 
             %% y_hat
             cii = region_make_cifti(R{i},V,'data',Yhat','dtype','series','struct',area,'TR',1);
