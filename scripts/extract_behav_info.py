@@ -35,10 +35,11 @@ raw_data = join(dir_work,'ssh__%s.dat'%subj)
 
 df = pd.read_csv(raw_data, delimiter='\t')
 
-df['cue'] = df['seqType'].map({0:'Letter',1: 'Spatial'})
+df['cue'] = df['seqType'].map({0:'L', 1:'S'})
+df['sequence'] = df['cueP'].map({32451:1, 35124:2, 13254:3, 14523:4})
 df['response'] = df[['response%d'%d for d in range(5)]].apply(lambda row: int(''.join(map(str, row))), axis=1)
-df = df.filter(items=['BN','TN','startTime','PrepTime','cue','cueP','response','MT','RT','isError','iti'])
-df.rename(columns={'startTime':'onset', 'PrepTime':'prepTime','cueP':'sequence', 'iti':'ITI'}, inplace=True)
+df = df.filter(items=['BN','TN','startTime','PrepTime','cue','sequence','MT','RT','isError','iti','response'])
+df.rename(columns={'startTime':'onset', 'PrepTime':'prepTime', 'iti':'ITI'}, inplace=True)
 
 df.to_csv(
 	join(dir_work,'behav_info.tsv'),

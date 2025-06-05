@@ -8,15 +8,16 @@ end
 sss_init;
 %% Scanner
 TR = 1; % unit: second
-numDummys  = 8;  % dummy images at the start of each run (these are discarded)
+numDummys  = 2;  % dummy images at the start of each run (these are discarded)
 
 %% Adjust this for experiment
-nTRs = [410*ones(1,8)];
+nTRs = 410;
+% nTRs = [410*ones(1,8)];
 % nTRs = [410*ones(1,10) 401 406 410 404 410 410 385]; % For S11
 % nTRs = [410*ones(1,16) 385]; % for S09
 
 %% HRF parameters
-hrf_params_default = [6 16 1 1 6 0 32];
+hrf_params_default = [5 15 1 1 6 0 32];
 hrf_params = [];
 hrf_cutoff = 128;
 
@@ -45,9 +46,9 @@ hname = {'CortexLeft', 'CortexRight'}; % 'CortexLeft', 'CortexRight', 'Cerebellu
 %% prefix of output files
 prefix = 'u';
 
-%%
-cues = ["Letter", "Spatial"];
-sequences = [32451, 35124, 13254, 14523];
+%% conditions
+cues = ["L", "S"]; % Letter / Spatial cue
+sequences = [1, 2, 3, 4]; % 1: 32451, 2:35124, 3:13254, 4:14523
 
 %% MAIN OPERATION 
 switch(what)
@@ -60,8 +61,7 @@ switch(what)
             delete(spm_file);
         end
 
-        sss_GLM('GLM:make_event_tsv','sn',sn,'glm',glm);
-        sss_GLM('GLM:design','sn',sn,'glm',glm,'nTRs',nTRs,'hrf_params',hrf_params);
+        sss_GLM('GLM:design','sn',sn,'glm',glm,'hrf_params',hrf_params);
         sss_GLM('GLM:estimate','sn',sn,'glm',glm);
         sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','beta'); % https://github.com/nno/surfing.git, spm nanmean
         sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','ResMS'); % https://github.com/nno/surfing.git, spm nanmean
@@ -75,9 +75,9 @@ switch(what)
         events.TN = [];
         events.onset = [];
         events.duration = [];
-        events.eventtype = [];
-        events.seq = []; % 0: 32451, 1:35124, 2:13254, 3:14523
-        events.cue = []; % 0: Letter cue, 1: Spatial cue
+        events.seq = [];
+        events.cue = [];
+        events.eventname = [];
 
         varargout{1} = D;
         varargout{2} = events;
@@ -87,7 +87,9 @@ switch(what)
         [D, events] = sss_GLM('GLM:init','sn',sn,'glm',glm);
 
         %% GLM1 : Trial State
-        % 0: (0,0), 1: (0,1), 2: (1,0), 3: (1,1), 4: (2,0), 5: (2,1), 6: (3,0), 7: (3,1)
+        % 1: (1,L), 2: (1,S), 3: (2,L), 4: (2,S), 5: (3,L), 6: (3,S), 7: (4,L), 8: (4,S)
+
+        onset_shift = -(numDummys*TR) * 1000;
 
         for idx_s = 1:length(sequences)
             for idx_c = 1:length(cues)
@@ -96,11 +98,11 @@ switch(what)
 
                 events.BN = [events.BN; D.BN(row_idxs)];
                 events.TN = [events.TN; D.TN(row_idxs)];
-                events.onset = [events.onset; D.onset(row_idxs)+D.prepTime(row_idxs)];
+                events.onset = [events.onset; D.onset(row_idxs)+D.prepTime(row_idxs)+onset_shift];
                 events.duration = [events.duration; repmat(2000, [sum(row_idxs), 1])];
-                events.eventtype = [events.eventtype; repmat(sprintf("(%d,%d)",idx_s-1,idx_c-1), [sum(row_idxs), 1])];
                 events.seq = [events.seq; D.sequence(row_idxs)];
                 events.cue = [events.cue; D.cue(row_idxs)];
+                events.eventname = [events.eventname; repmat(sprintf("(%d,%s)",sequences(idx_s),cues(idx_c)), [sum(row_idxs), 1])];
             end
         end
         
@@ -127,33 +129,35 @@ switch(what)
         % |(3,1)|     |     |     |     |(    |     |     | B63)|
         % B: Both-Rep, S: Seq-Rep, C: Cue-Rep, N: No-Rep, (First Finger)
 
-    case 'GLM:make_event_tsv'
+    case 'GLM:get_event'
         w = sprintf('GLM:make_glm_%d',glm);
         events = sss_GLM(w,'sn',sn,'glm',glm);
 
-        dir_work = fullfile(baseDir,behavDir,sprintf('sub-%s',subj_id));
+        % dir_work = fullfile(baseDir,behavDir,sprintf('sub-%s',subj_id));
         % if (~exist(dir_work,'dir'))
         %     mkdir(dir_work);
         % end
 
-        writetable(events, fullfile(dir_work, sprintf('glm_%d.tsv', glm)), 'FileType', 'text', 'Delimiter', '\t')
+        % writetable(events, fullfile(dir_work, sprintf('glm_%d.tsv', glm)), 'FileType', 'text', 'Delimiter', '\t')
+        varargout{1} = events;
     
     case 'GLM:design'
         %% dependency:
         % https://github.com/spm/spm.git
         % https://github.com/jdiedrichsen/rwls.git
 
-        %% import globals from spm_defaults 
+        %% import globals from spm_defaults
+        % spm_get_defaults;
         global defaults; 
         if (isempty(defaults))
             spm_defaults;
         end
 
         %% load event file
-        events_file = fullfile(baseDir,behavDir,sprintf('sub-%s/glm_%d.tsv',subj_id,glm));
-        Dd = dload(events_file);
+        % events_file = fullfile(baseDir,behavDir,sprintf('sub-%s/glm_%d.tsv',subj_id,glm));
+        Dd = sss_GLM('GLM:get_event','sn',sn,'glm',glm);
 
-        regressors = unique(Dd.eventtype);
+        regressors = unique(Dd.eventname);
         nRegr = length(regressors);
 
         %% cvi type
@@ -163,6 +167,9 @@ switch(what)
         %% initiate J
         J = [];
         J.dir = {fullfile(baseDir,glmDir,subj_id)};
+        if ~exist(J.dir{1},"dir")
+            mkdir(J.dir{1});
+        end
 
         J.timing.units = 'secs'; % timing unit that all timing in model will be
         J.timing.RT = 1; % TR (in seconds, as per 'J.timing.units')
@@ -181,14 +188,21 @@ switch(what)
         itaskUni = 0;
         for run=runs
             % Setup scans for current session
-            J.sess(run).scans= {fullfile(epi_files(run).folder, epi_files(run).name)};
+            N = {};
+            cnt = 1;
+            for ii = numDummys+1:nTRs
+                N{cnt} = fullfile(epi_files(run).folder, sprintf('%s,%d',epi_files(run).name,ii));
+                cnt = cnt + 1;
+            end
+            % N = {fullfile(epi_files(run).folder, epi_files(run).name)};
+            J.sess(run).scans = N;
 
             % Preallocate memory for conditions
             J.sess(run).cond = repmat(struct('name', '', 'onset', [], 'duration', []), nRegr, 1);
 
             for regr = 1:nRegr
                 itaskUni = itaskUni + 1;
-                rows = find(Dd.BN == run & strcmp(Dd.eventtype, regressors(regr)));
+                rows = find(Dd.BN == run & strcmp(Dd.eventname, regressors(regr)));
 
                 % Regressor name
                 J.sess(run).cond(regr).name = regressors{regr};
@@ -214,11 +228,13 @@ switch(what)
                 % add the condition info to the reginfo structure
 
                 % filling in "reginfo"
-                TT.sn        = sn;
-                TT.run       = run;
-                TT.reg = regressors(regr);
-                TT.cond      = regr;
-                TT.regIdx    = itaskUni;
+                TT.sn       = sn;
+                TT.run      = run;
+                TT.cond     = regr;
+                TT.regIdx   = itaskUni;
+                TT.seq      = unique(Dd.seq(rows));
+                TT.cue      = unique(Dd.cue(rows));
+                TT.reg      = cellstr(regressors(regr));
                 % TT.n_rep     = sum(idx);
         
                 T = addstruct(T, TT);
@@ -301,6 +317,9 @@ switch(what)
         % remove empty rows (e.g., when skipping runs)
         J.sess = J.sess(~arrayfun(@(x) all(structfun(@isempty, x)), J.sess));
 
+        % save the variable T as reginfo.tsv
+        dsave(fullfile(J.dir{1},'reginfo.tsv'), T);
+
         % run
         spm_rwls_run_fmri_spec(J);
 
@@ -310,9 +329,7 @@ switch(what)
         SPM = tmp.SPM;
         save(fullfile(J.dir{1},'SPM.mat'),'SPM','-v7.3');
 
-        dsave(fullfile(J.dir{1},'reginfo.tsv'), T);
-
-        fprintf('- estimates for glm_%d subject %d has been saved for %s \n', glm, subj_id);
+        fprintf('- estimates for glm_%d subject %s has been saved for %s \n', glm, subj_id);
     
     case 'GLM:estimate' % estimate beta coefficient
         % Estimate the GLM from the appropriate SPM.mat file.
