@@ -85,9 +85,14 @@ def get_dir_result():
 	return join(dir_root,'results')
 
 def get_list_sn():
-	nn = [1, 2, 3, 5, 6, 8, 9, 10, 11, 12, 13, 14]
+	# nn = [1, 2, 3, 5, 6, 8, 9, 10, 11, 12, 13, 14]
+	# list_nn = ['%02d'%ii for ii in nn]
+	
+	list_nn = ['%02d'%(i+1) for i in range(14)]
+	list_nn.remove('04')
+	list_nn.remove('07')
 
-	return np.array(['%02d'%ii for ii in nn])
+	return np.array(list_nn)
 
 def get_S_id(subj):
 

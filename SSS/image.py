@@ -11,8 +11,8 @@ from nilearn import image
 import nibabel as nb
 
 import surfAnalysisPy as surf
-import Functional_Fusion.atlas_map as am
-import Functional_Fusion.reliability as rel
+# import Functional_Fusion.atlas_map as am
+# import Functional_Fusion.reliability as rel
 
 def get_list_roi():
 
