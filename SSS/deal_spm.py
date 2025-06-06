@@ -194,18 +194,20 @@ def get_df_X(SPM):
 		df: pandas dataframe
 			Design matrix for the regressors of interest for all runs.
 	"""
-	nTRs = 410
+	# nTRs = 410
 	nRuns = 8
 
-	df = pd.DataFrame({'TR':np.arange(nTRs)+1})
+	df = pd.DataFrame()
 	for rr in range(nRuns):
 		run = rr+1
 		X = get_SPM_X(SPM, run=run)
 		df[run] = X.sum(axis=1)
+	df.reset_index(inplace=True)
 	df = df.melt(
-		id_vars = ['TR'],
+		id_vars = ['index'],
 		value_vars = np.arange(nRuns)+1, var_name = 'run', value_name = 'X_sum'
 	)
+	df.rename(columns={'index':'TR'}, inplace=True)
 
 	return df
 

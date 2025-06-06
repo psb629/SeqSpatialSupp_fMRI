@@ -66,7 +66,7 @@ def load_yraw(subj,roi,hemi='L'):
 
 	return nb.load(fname)
 
-def load_hrf_tune(subj, glm, roi, param=[6,16], hemi='L', map_='beta'):
+def load_hrf_tune(subj, glm, roi, param=[6,16], hemi='L', map='beta'):
 	"""
 	Output
 		y: cifti data with (# total TRs) X (# voxels) shape
@@ -78,8 +78,8 @@ def load_hrf_tune(subj, glm, roi, param=[6,16], hemi='L', map_='beta'):
 	param_ = deal_spm.convert_param_to_hrf(params=param, type='str')
 
 	hemi_ = hemi.upper()
-	fname = glob(join(dir_work,'cifti.%s.%s.%s.%s.%s.%s.d*.nii'%(hemi_,glm_,param_.replace('[','?'),subj,roi,map_)))[0]
-	cii = nb.load(fname)
+	fname = join(dir_work,'cifti.%s.%s.%s.%s.%s.%s.*.nii'%(hemi_,glm_,param_.replace('[','?'),subj,roi,map)) 
+	cii = nb.load(glob(fname)[0])
 
 	return cii
 
@@ -90,11 +90,12 @@ def get_df_y(subj, glm, roi, param=[6,16], hemi='L', show_yraw=False, melt=False
 			len(df) = # total TRs
 			len(df.melt) = nRuns*nTRs(=# TRs per Run)*2(y_adj/y_hat)
 	"""
-	y_hat = load_hrf_tune(subj=subj,glm=glm,roi=roi,param=param,map_='y_hat')
-	y_res = load_hrf_tune(subj=subj,glm=glm,roi=roi,param=param,map_='y_res')
+	y_hat = load_hrf_tune(subj=subj,glm=glm,roi=roi,param=param,map='y_hat')
+	y_res = load_hrf_tune(subj=subj,glm=glm,roi=roi,param=param,map='y_res')
 
-	nTRs = 410
+	nTRnRUN, _ = y_hat.shape
 	nRuns = 8
+	nTRs = int(nTRnRUN/nRuns)
 
 	df = pd.DataFrame(
 		{
