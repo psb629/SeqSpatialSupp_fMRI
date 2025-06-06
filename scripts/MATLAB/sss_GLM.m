@@ -65,6 +65,9 @@ switch(what)
         sss_GLM('GLM:estimate','sn',sn,'glm',glm);
         sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','beta'); % https://github.com/nno/surfing.git, spm nanmean
         sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','ResMS'); % https://github.com/nno/surfing.git, spm nanmean
+
+        list_param = [4 14;5 15;6 16;7 17;8 18;9 19];
+        for i=1:length(list_param); param=list_param(i,:); sss_GLM('GLM:HRF_tuner','sn',sn,'glm',glm,'hrf_params',param); end;
     
     case 'GLM:init'
         D = dload(fullfile(baseDir,behavDir,sprintf('sub-%s/behav_info.tsv',subj_id)));
@@ -438,7 +441,7 @@ switch(what)
     case 'GLM:HRF_tuner'
         %% HRF tunning
         % params = mat2str(hrf_params(1:6));
-        % fprintf('GLM:HRF_tuner - %s %s\n',subj_id,params);
+        fprintf('GLM:HRF_tuner - %s: %s\n',subj_id,hrf_params);
         dir_output = fullfile(baseDir,glmDir,subj_id,'hrf_tune');
         if (~exist(dir_output,'dir'))
             mkdir(dir_output);
@@ -495,6 +498,12 @@ switch(what)
             fname = fullfile(dir_yraw, sprintf('cifti.%s.%s.%s.y_raw.dtseries.nii',hemisphere,subj_id,roi));
             cii = cifti_read(fname);
             Yraw = double(cii.cdata(:,:)');
+            tmp = numDummys+1:nTRs;
+            idx = [];
+            for j=0:7
+                idx = [idx tmp+nTRs*j];
+            end
+            Yraw = Yraw(idx,:);
             clear cii
             
             % Restimate the betas and get predicted and residual response
@@ -507,19 +516,19 @@ switch(what)
             params = [params ']'];
 
             %% y_hat
-            cii = region_make_cifti(R{i},V,'data',Yhat','dtype','series','struct',area,'TR',1);
+            cii = region_make_cifti(R{i},V,'data',Yhat','dtype','series','struct',area,'TR',TR);
             fname = fullfile(dir_output, sprintf('cifti.%s.%s.%s.%s.%s.y_hat.dtseries.nii',hemisphere,glmDir,params,subj_id,roi));
             cifti_write(cii, fname);
             clear cii
 
             %% y_res
-            cii = region_make_cifti(R{i},V,'data',Yres','dtype','series','struct',area,'TR',1);
+            cii = region_make_cifti(R{i},V,'data',Yres','dtype','series','struct',area,'TR',TR);
             fname = fullfile(dir_output, sprintf('cifti.%s.%s.%s.%s.%s.y_res.dtseries.nii',hemisphere,glmDir,params,subj_id,roi));
             cifti_write(cii, fname);
             clear cii
 
             %% beta
-            cii = region_make_cifti(R{i},V,'data',beta(SPM.xX.iC,:)','dtype','scalars','struct',area,'TR',1);
+            cii = region_make_cifti(R{i},V,'data',beta(SPM.xX.iC,:)','dtype','scalars','struct',area,'TR',TR);
             fname = fullfile(dir_output, sprintf('cifti.%s.%s.%s.%s.%s.beta.dscalar.nii',hemisphere,glmDir,params,subj_id,roi));
             cifti_write(cii, fname);
             clear cii
