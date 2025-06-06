@@ -109,7 +109,7 @@ def get_df_y(subj, glm, roi, param=[6,16], hemi='L', show_yraw=False, melt=False
 	value_vars = ['y_hat','y_res','y_adj']
 	if show_yraw:
 		y_raw = load_yraw(subj=subj, roi=roi)
-		df['y_raw'] = y_raw.get_fdata().mean(axis=1)
+		df['y_raw'] = y_raw.get_fdata().mean(axis=1)[-nTRnRUN:]
 		value_vars = ['y_raw','y_hat','y_res','y_adj']
 
 	if melt:
