@@ -441,13 +441,13 @@ switch(what)
     case 'GLM:HRF_tuner'
         %% HRF tunning
         % params = mat2str(hrf_params(1:6));
-        fprintf('GLM:HRF_tuner - %s: %s\n',subj_id,hrf_params);
+        fprintf('GLM:HRF_tuner - %s: %s\n',subj_id,mat2str(hrf_params));
         dir_output = fullfile(baseDir,glmDir,subj_id,'hrf_tune');
         if (~exist(dir_output,'dir'))
             mkdir(dir_output);
         end
         % library = dload(fullfile(dir_SSS,'getcanonicalhrflibrary.tsv'));
-        library = readtable(fullfile(dir_SSS,'getcanonicalhrflibrary.tsv'), 'FileType', 'text', 'Delimiter', '\t');
+        % library = readtable(fullfile(dir_SSS,'getcanonicalhrflibrary.tsv'), 'FileType', 'text', 'Delimiter', '\t');
 
         %% load SPM.mat (GLM information)
         SPM = load(fullfile(baseDir,glmDir,subj_id,'SPM.mat'));
@@ -481,7 +481,7 @@ switch(what)
 
         %% 피험자 EPI 의 3-D 정보
         VolFile = R{1,1}.image;
-        % VolFile = fullfile(baseDir,glmDir,subj_id,'mask.nii');
+        VolFile = fullfile(baseDir,glmDir,subj_id,'mask.nii');
         V = spm_vol(VolFile);
 
         for i=1:length(R)
