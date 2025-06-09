@@ -8,7 +8,7 @@ end
 sss_init;
 %% Scanner
 TR = 1; % unit: second
-numDummys  = 2;  % dummy images at the start of each run (these are discarded)
+numDummys  = 3;  % dummy images at the start of each run (these are discarded)
 
 %% Adjust this for experiment
 nTRs = 410;
@@ -446,6 +446,8 @@ switch(what)
         if (~exist(dir_output,'dir'))
             mkdir(dir_output);
         end
+        % library = dload(fullfile(dir_SSS,'getcanonicalhrflibrary.tsv'));
+        library = readtable(fullfile(dir_SSS,'getcanonicalhrflibrary.tsv'), 'FileType', 'text', 'Delimiter', '\t');
 
         %% load SPM.mat (GLM information)
         SPM = load(fullfile(baseDir,glmDir,subj_id,'SPM.mat'));

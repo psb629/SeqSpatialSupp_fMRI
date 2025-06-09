@@ -25,4 +25,5 @@ roiDir          = 'ROI';
 if exist(dir_git, 'dir')
     addpath(genpath(dir_git));
 end
-atlasDir = fullfile(dir_git,'SeqSpatialSupp_fMRI/atlas');
+dir_SSS = fullfile(dir_git,'SeqSpatialSupp_fMRI');
+atlasDir = fullfile(dir_SSS,'atlas');
