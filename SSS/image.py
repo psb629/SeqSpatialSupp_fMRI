@@ -32,7 +32,7 @@ def get_border(path_surfAnalysisPY, hemi='L'):
 
 def load_summed_roi(subj, list_roi):
 	"""
-	Output
+	Return
 		ROI_img: 3D nifti data
 			ROI image with sequentially assigned natural number labels for each ROI.
 	"""
@@ -54,7 +54,7 @@ def load_summed_roi(subj, list_roi):
 
 def load_yraw(subj,roi,hemi='L'):
 	"""
-	Output
+	Return
 		y: cifti data with (# total TRs) X (# voxels) shape
 	"""
 	dir_roi = ut.get_dir_roi()
@@ -68,14 +68,17 @@ def load_yraw(subj,roi,hemi='L'):
 
 def load_hrf_tune(subj, glm, roi, param=[6,16], hemi='L', map='beta'):
 	"""
-	Output
-		y: cifti data with (# total TRs) X (# voxels) shape
+	Return
+		y: cifti 
+			(# total TRs) X (# voxels) for map='y_hat' or 'y_res'
+		beta: cifti
+			(# runs * # interests) X (# voxels) for map='beta'
 	"""
 	dir_glm = ut.get_dir_glm(glm)
 	glm_ = dir_glm.split('/')[-1]
 	dir_work = join(dir_glm,subj,'hrf_tune')
 
-	param_ = deal_spm.convert_param_to_hrf(params=param, type='str')
+	param_ = ut.convert_param_to_hrf(params=param, type='str')
 
 	hemi_ = hemi.upper()
 	fname = join(dir_work,'cifti.%s.%s.%s.%s.%s.%s.*.nii'%(hemi_,glm_,param_.replace('[','?'),subj,roi,map)) 
@@ -85,7 +88,7 @@ def load_hrf_tune(subj, glm, roi, param=[6,16], hemi='L', map='beta'):
 
 def get_df_y(subj, glm, roi, param=[6,16], hemi='L', show_yraw=False, melt=False):
 	"""
-	Output
+	Return
 		df: DataFrame
 			len(df) = # total TRs
 			len(df.melt) = nRuns*nTRs(=# TRs per Run)*2(y_adj/y_hat)
@@ -122,7 +125,7 @@ def get_df_y(subj, glm, roi, param=[6,16], hemi='L', show_yraw=False, melt=False
 
 def get_df_window_y(subj, glm, roi, param, pre=10, post=20, TR=1):
 	"""
-	Output
+	Return
 		df: DataFrame
 			len(df) = nRuns*nTrials*nTRs(=pre+post+1)*2(y_adj/y_hat)
 	"""
@@ -181,6 +184,10 @@ def get_df_window_y(subj, glm, roi, param, pre=10, post=20, TR=1):
 	return df_window_y
 
 def get_WPM(subj, glm):
+	"""
+	Return
+		cerebral images: gifti, gifti, and nifti
+	"""
 	dir_surf = ut.get_dir_surf()
 	dir_glm = ut.get_dir_glm(glm)
 	S_id = ut.get_S_id(subj)
@@ -192,17 +199,30 @@ def get_WPM(subj, glm):
 
 	return white, pial, mask
 
-def get_prewhitened_beta(subj, glm):
-	dir_surf = ut.get_dir_surf()
+def get_prewhitened_beta(subj, glm, region='whole', param=[5,15], hemi='L'):
+	"""
+	Return
+		beta_whiten : 1-D or 2-D numpy array
+			cifti data with (# runs * # interests) X (# voxels) for map='beta'
+	"""
+	if region=='whole':
+		dir_surf = ut.get_dir_surf()
+		betas = nb.load(join(dir_surf,'glm_%d/%s.%s.glm_%d.beta.func.gii'%(glm,subj,hemi,glm))).darrays
+		res = nb.load(join(dir_surf,'glm_%d/%s.%s.glm_%d.ResMS.func.gii'%(glm,subj,hemi,glm))).darrays[0].data
 
-	betas = nb.load(join(dir_surf,'glm_%d/%s.L.glm_%d.beta.func.gii'%(glm,subj,glm)))
-	res = nb.load(join(dir_surf,'glm_%d/%s.L.glm_%d.ResMS.func.gii'%(glm,subj,glm)))
-
+	else:
+		pp = ut.convert_param_to_hrf(params=param, type='str')
+		betas = load_hrf_tune(subj=subj, glm=glm, roi=region, param=param, hemi=hemi, map='beta').get_fdata()
+		res = nb.load(join(
+			ut.get_dir_roi(),'glm_%d'%glm,'cifti.%s.%s.%s.ResMS.dscalar.nii'%(hemi,subj,region)
+		)).get_fdata().reshape(-1)
+		
 	beta_whiten = []
-	for beta in betas.darrays:
+	for beta in betas:
+		if isinstance(beta, nb.gifti.gifti.GiftiDataArray):
+			beta = beta.data
 		beta_whiten.append(
-			beta.data/(np.sqrt(res.darrays[0].data)+1.e-14)
+			beta/(np.sqrt(res)+1.e-14)
 		)
-	beta_whiten = np.array(beta_whiten)
-	
+
 	return np.array(beta_whiten)
