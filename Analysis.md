@@ -15,7 +15,7 @@ $\leftarrow$ `GLM:estimate`
 
 계산한 $\beta$*.nii* 및 *ResMS.nii*를 2D surface에 mapping 함.
 
-### 4. `GLM:HRF_tuner`: `SeqSpatialSupp_fMRI/glm_<num>/<subj_id>/hrf_tune`
+### 5. `GLM:HRF_tuner`: `SeqSpatialSupp_fMRI/glm_<num>/<subj_id>/hrf_tune`
 $\leftarrow$ `GLM:estimate`, `ROI:make_cifti.y_raw`
 
 SPM.mat 파일을 불러들여 `SPM = spmj_glm_convolve(SPM)`를 통해 새로운 HRF parameter 를 적용한 후, ROI 별 $y_{raw}$ CIFTI 파일을 불러들여 국소적인 GLM 을 계산하고 (`[beta, Yhat, Yres] = spmj_glm_fit(SPM,Yraw)`) 결과물을 CIFTI 포멧으로 저장한다.
@@ -26,7 +26,7 @@ $\rightarrow$ 새롭게 얻은 ROI 별 beta는 (univariate) spatial prewhitening
 
 ---
 
-## 3. `ROI:all`
+## 3. `ROI:init`
 
 ### `ROI:calc_region`: `SeqSpatialSupp_fMRI/ROI/<subj_id>`
 $\leftarrow$ `GLM:estimate`
@@ -43,6 +43,8 @@ cf) **anatomical.nii** 가 아닌 **mask.nii** 를 쓰는 이유는 전처리 �
 $\leftarrow$ `ROI:calc_region`, `GLM:estimate`
 
 GLM 결과인 *SPM.mat* 에 저장된 (3+1)D whole brain $y_{raw}$ (=*SPM.xY.VY*) 를 <subj_id>.Task_regions.mat 에 저장된 ROI 정보를 토대로 2D surface로 추출하여 *cifti.<hemisphere>.<subj_id>.<ROI>.y_raw.dtseries.nii* 꼴(CIFTI)로 저장한다.
+
+## 4. `ROI:glm`
 
 ### `ROI:make_cifti.ResMS`: `SeqSpatialSupp_fMRI/ROI/glm_<num>`
 $\leftarrow$ `ROI:calc_region`, `GLM:estimate`
