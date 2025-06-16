@@ -13,12 +13,16 @@ Whole brain에 대하여 default HRF parameter 인 [5,15,1,1,6,0,32]로 GLM을 �
 ### `WB:vol2surf`: `SeqSpatialSupp_fMRI/surfaceWB/glm_<num>`
 $\leftarrow$ `GLM:estimate`
 
-계산한 $\beta$.nii 및 *ResMS.nii*를 2D surface에 mapping 함.
+계산한 $\beta$*.nii* 및 *ResMS.nii*를 2D surface에 mapping 함.
 
 ### 4. `GLM:HRF_tuner`: `SeqSpatialSupp_fMRI/glm_<num>/<subj_id>/hrf_tune`
 $\leftarrow$ `GLM:estimate`, `ROI:make_cifti.y_raw`
 
-SPM.mat 파일을 불러들여 `SPM = spmj_glm_convolve(SPM)`를 통해 새로운 HRF parameter 를 적용한 후, ROI별 $y_{raw}$ CIFTI 파일을 불러들여 국소적인 GLM 을 계산하고 (`[beta, Yhat, Yres] = spmj_glm_fit(SPM,Yraw)`) 저장한다.
+SPM.mat 파일을 불러들여 `SPM = spmj_glm_convolve(SPM)`를 통해 새로운 HRF parameter 를 적용한 후, ROI 별 $y_{raw}$ CIFTI 파일을 불러들여 국소적인 GLM 을 계산하고 (`[beta, Yhat, Yres] = spmj_glm_fit(SPM,Yraw)`) 결과물을 CIFTI 포멧으로 저장한다.
+
+$\rightarrow$ 각 HRF parameter 별, GLM 모델인 $y_{hat}$ 이 잘 동작하는 $R^{2}=1-\frac{RSS}{TSS}$ 값을 계산하고 적절한 HRF parameter 를 선택한다.
+
+$\rightarrow$ 새롭게 얻은 ROI 별 beta는 spatial prewhitening 을 위해 ResMS.nii 의 값이 필요하므로, ResMS.nii 역시 ROI 별로 `SeqSpatialSupp_fMRI/ROI/glm_<num>`에 저장할 필요가 있다.
 
 ---
 
@@ -33,7 +37,7 @@ $\leftarrow$ `GLM:estimate`
 
 $\rightarrow$ 생성한 ROI.nii 들은 anatomical.nii 와 함께 불러와서 align 을 체크해야한다!
 
-cf) **anatomical.nii** 가 아닌 **mask.nii** 를 쓰는 이유는 전처리 과정에서 EPI image 이미지가 anatomical image에 align이 되기도 했고, $y_{raw}$나 $\beta$와 같은 데이터를 추출하는게 주 목적이기 때문이다.
+cf) **anatomical.nii** 가 아닌 **mask.nii** 를 쓰는 이유는 전처리 과정에서 EPI image 이미지가 anatomical image에 align이 되기도 했고, $y_{raw}$나 $\beta$와 같은 EPI related 데이터를 추출하는게 주 목적이기 때문이다.
 
 ### `ROI:make_cifti.y_raw`: `SeqSpatialSupp_fMRI/ROI/<subj_id>`
 $\leftarrow$ `ROI:calc_region`, `GLM:estimate`
