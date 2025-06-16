@@ -11,13 +11,14 @@ end
 sss_init;
 
 %% argument inputs
+TR = 1;
 sn = [];
-glm = 3;
+glm = 1;
 vararginoptions(varargin,{'sn','glm'});
 if isempty(sn)
     error('''sn'' must be passed to this function.')
 end
-[subj_id, S_id] = get_id(fullfile(dir_git,'SeqSpatialSupp_fMRI/participants.tsv'), sn);
+[subj_id, S_id] = get_id(fullfile(baseDir,'participants.tsv'), sn);
 
 if isempty(glm)
     error('''glm'' must be passed to this function.')
@@ -31,12 +32,15 @@ hname = {'CortexLeft', 'CortexRight'}; % 'CortexLeft', 'CortexRight', 'Cerebellu
 
 %% MAIN OPERATION 
 switch(what)
-    case 'ROI:all'
+    case 'ROI:init'
         if subj_id(1)=='S'
             sss_ROI('ROI:calc_region','sn',sn); % https://github.com/DiedrichsenLab/region.git
         end
         % sss_hrf('ROI:deform','sn',sn,'glm',glm);
         sss_ROI('ROI:make_cifti.y_raw','sn',sn); % https://github.com/Washington-University/cifti-matlab.git
+
+    case 'ROI:glm'
+        sss_ROI('ROI:make_cifti.ResMS','sn',sn,'glm',glm); % https://github.com/Washington-University/cifti-matlab.git
 
     % case 'ROI:findall' % use this... %rdm, glm3
     %     % ROI 11개를 모아놓은 ROI.L.SSS.label.gii 파일 만들기
@@ -216,7 +220,7 @@ switch(what)
             %% y_raw
             fname = fullfile(baseDir,roiDir,subj_id,sprintf('cifti.%s.%s.%s.y_raw.dtseries.nii',hemisphere,subj_id,name));
             if ~exist(fname,'file')
-                cii = region_make_cifti(R{i},V,'data',D{i}','dtype','series','TR',1);
+                cii = region_make_cifti(R{i},V,'data',D{i}','dtype','series','TR',TR);
                 cifti_write(cii, fname);
             end
             
@@ -224,16 +228,59 @@ switch(what)
             % [beta, Yhat, Yres] = spmj_glm_fit(SPM,D{i});
             % 
             % % y_hat
-            % cii = region_make_cifti(R{i},V,'data',Yhat','dtype','series','TR',1);
+            % cii = region_make_cifti(R{i},V,'data',Yhat','dtype','series','TR',TR);
             % fname = fullfile(dir_work, sprintf('cifti.%s.glm%d.%s.%s.y_hat.dtseries.nii',hemisphere,glm,subj_id,name));
             % 
             % cifti_write(cii, fname);
             % 
             % % y_res
-            % cii = region_make_cifti(R{i},V,'data',Yres','dtype','series','TR',1);
+            % cii = region_make_cifti(R{i},V,'data',Yres','dtype','series','TR',TR);
             % fname = fullfile(dir_work, sprintf('cifti.%s.glm%d.%s.%s.y_res.dtseries.nii',hemisphere,glm,subj_id,name));
             % 
             % cifti_write(cii, fname);
+        end
+
+    case 'ROI:make_cifti.ResMS'
+        % 피험자의 volume 공간으로 매핑한 ROI 마스크를 이용하여 피험자의
+        % ResMS 데이터를 voxel 단위로 얻고, 그 결과를 cifti로 저장
+
+        % 피험자의 surface 공간에서 각 ROI의 node (2-D) 정보 
+        fname = fullfile(baseDir,roiDir,subj_id,sprintf('%s.Task_regions.mat',subj_id));
+        % [R, V] = sss_hrf('ROI:deform','sn',sn,'glm',glm,'LR',LR);
+        R = load(fname); R = R.R;
+
+        % 피험자 EPI 의 3-D 정보
+        % VolFile = fullfile(baseDir,glmDir,subj_id,'mask.nii');
+        VolFile = R{1,1}.image;
+        V = spm_vol(VolFile);
+
+        dir_work = fullfile(baseDir,glmDir,subj_id);
+
+        SPM = load(fullfile(dir_work,'SPM.mat'));
+        SPM = SPM.SPM;
+
+        fprintf('extrating Y_raw from each ROI for subject %s...\n',subj_id);
+        SPM.VResMS.fname = fullfile(dir_work,'ResMS.nii');
+        % R의 정보를 토대로 추출한 2-D y data
+        D = region_getdata(SPM.VResMS,R);
+
+        % length(D) = the number of ROIs (Left/Right)
+        dir_output = fullfile(baseDir,roiDir,glmDir);
+        if ~exist(dir_output,'dir')
+            mkdir(dir_output);
+        end
+        area = 'OTHER';
+        for i = 1:length(D)
+            name = R{1,i}.name;
+            hemisphere = R{1,i}.hem;
+            
+            %% beta
+            fname = fullfile(dir_output,sprintf('cifti.%s.%s.%s.ResMS.dscalar.nii',hemisphere,subj_id,name));
+            if ~exist(fname,'file')
+                cii = region_make_cifti(R{i},V,'data',D{i}','dtype','scalars','struct',area,'TR',TR);
+                cifti_write(cii, fname);
+            end
+            clear cii
         end
 
 end

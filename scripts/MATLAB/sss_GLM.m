@@ -480,7 +480,7 @@ switch(what)
         R = load(fname); R = R.R;
 
         %% 피험자 EPI 의 3-D 정보
-        VolFile = R{1,1}.image;
+        % VolFile = R{1,1}.image;
         VolFile = fullfile(baseDir,glmDir,subj_id,'mask.nii');
         V = spm_vol(VolFile);
 
