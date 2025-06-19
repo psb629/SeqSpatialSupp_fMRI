@@ -213,6 +213,7 @@ def get_prewhitened_beta(subj, glm, region='whole', param=[5,15], hemi='L'):
 	else:
 		pp = ut.convert_param_to_hrf(params=param, type='str')
 		betas = load_hrf_tune(subj=subj, glm=glm, roi=region, param=param, hemi=hemi, map='beta').get_fdata()
+		## Sometimes 'res' contains NaN values—for example, in the M1 region of R11—but the reason is unknown.
 		res = nb.load(join(
 			ut.get_dir_roi(),'glm_%d'%glm,'cifti.%s.%s.%s.ResMS.dscalar.nii'%(hemi,subj,region)
 		)).get_fdata().reshape(-1)
@@ -225,4 +226,4 @@ def get_prewhitened_beta(subj, glm, region='whole', param=[5,15], hemi='L'):
 			beta/(np.sqrt(res)+1.e-14)
 		)
 
-	return np.array(beta_whiten)
+	return np.nan_to_num(beta_whiten, nan=0.0)

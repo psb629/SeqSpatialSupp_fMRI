@@ -5,6 +5,7 @@ from os import getcwd
 
 import numpy as np
 import pandas as pd
+import re
 
 def convert_pval_to_star(pvalue):
 	res = "ns"
@@ -131,12 +132,12 @@ def convert_param_to_hrf(params=None, type='list'):
 
 	hrf = hrf_default
 	
+	if isinstance(params,str):
+		params = list(map(int, re.findall(r'-?\d+', params)))
+
 	if not params==None:
 		for ii, p in enumerate(params):
-			if not isinstance(p,str):
-				hrf[ii] = p
-			else:
-				continue
+			hrf[ii] = p
 	
 	if type=='list':
 		res = hrf
