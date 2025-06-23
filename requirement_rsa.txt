@@ -1,0 +1,22 @@
+# python_version < "3.9"
+numpy>=1.21.2
+pandas
+
+scipy>=1.10.1
+scikit-learn
+scikit-image
+
+nilearn
+nibabel
+
+matplotlib
+seaborn
+plotly
+
+h5py
+tqdm
+joblib
+importlib_resources>=5.12
+networkx>=3.0
+
+ipykernel
