@@ -123,7 +123,7 @@ def get_df_y(subj, glm, roi, param=[6,16], hemi='L', show_yraw=False, melt=False
 	
 	return df
 
-def get_df_window_y(subj, glm, roi, param, pre=10, post=20, TR=1):
+def get_df_window_y(subj, glm, roi, param, pre=10, post=20, gap=False, TR=1):
 	"""
 	Return
 		df: DataFrame
@@ -132,8 +132,16 @@ def get_df_window_y(subj, glm, roi, param, pre=10, post=20, TR=1):
 	## load onset times
 	dir_glm = ut.get_dir_glm(glm)
 	SPM = join(dir_glm,subj,'SPM.mat')
- 	# df_onset = deal_spm.get_df_onset(SPM)
-	onsets_by_run = deal_spm.get_concat_onset(SPM)
+
+	if not gap:
+		onsets_by_run = deal_spm.get_concat_onset(SPM)
+	else:
+		onsets = np.array(deal_spm.get_concat_onset(SPM))
+		idxs = np.diff(onsets,axis=1) > 16
+		tmp = np.ones((len(onsets),1), dtype=bool)
+		idxs = np.concatenate([idxs, tmp], axis=1)
+
+		onsets_by_run = onsets[idxs].reshape((len(onsets),-1))
 	
 	## load y
 	df_y = get_df_y(

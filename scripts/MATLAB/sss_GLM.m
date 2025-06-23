@@ -55,19 +55,25 @@ switch(what)
     case 'GLM:all'
         spm_get_defaults('cmdline', true);  % Suppress GUI prompts, no request for overwirte
 
-        % Check for and delete existing SPM.mat file
-        spm_file = fullfile(baseDir,glmDir,subj_id,'SPM.mat');
-        if exist(spm_file, 'file')
-            delete(spm_file);
+        % % Check for and delete existing SPM.mat file
+        % spm_file = fullfile(baseDir,glmDir,subj_id,'SPM.mat');
+        % if exist(spm_file, 'file')
+        %     delete(spm_file);
+        % end
+        % 
+        % sss_GLM('GLM:design','sn',sn,'glm',glm,'hrf_params',hrf_params);
+        % sss_GLM('GLM:estimate','sn',sn,'glm',glm);
+        % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','beta'); % https://github.com/nno/surfing.git, spm nanmean
+        % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','ResMS'); % https://github.com/nno/surfing.git, spm nanmean
+
+        % list_param = [4 14;5 15;6 16;7 17;8 18;9 19];
+        list_param = [4 14;5 15];
+        for i=1:length(list_param)
+            for j=[-1,0,1]
+                param=[list_param(i,1), list_param(i,2)+j];
+                sss_GLM('GLM:HRF_tuner','sn',sn,'glm',glm,'hrf_params',param);
+            end
         end
-
-        sss_GLM('GLM:design','sn',sn,'glm',glm,'hrf_params',hrf_params);
-        sss_GLM('GLM:estimate','sn',sn,'glm',glm);
-        sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','beta'); % https://github.com/nno/surfing.git, spm nanmean
-        sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','ResMS'); % https://github.com/nno/surfing.git, spm nanmean
-
-        list_param = [4 14;5 15;6 16;7 17;8 18;9 19];
-        for i=1:length(list_param); param=list_param(i,:); sss_GLM('GLM:HRF_tuner','sn',sn,'glm',glm,'hrf_params',param); end;
     
     case 'GLM:init'
         D = dload(fullfile(baseDir,behavDir,sprintf('sub-%s/behav_info.tsv',subj_id)));
