@@ -123,7 +123,7 @@ def get_df_y(subj, glm, roi, param=[6,16], hemi='L', show_yraw=False, melt=False
 	
 	return df
 
-def get_df_window_y(subj, glm, roi, param, pre=10, post=20, gap=False, TR=1):
+def get_df_window_y(subj, glm, roi, param, pre=10, post=20, gap=0, TR=1):
 	"""
 	Return
 		df: DataFrame
@@ -137,7 +137,7 @@ def get_df_window_y(subj, glm, roi, param, pre=10, post=20, gap=False, TR=1):
 		onsets_by_run = deal_spm.get_concat_onset(SPM)
 	else:
 		onsets = np.array(deal_spm.get_concat_onset(SPM))
-		idxs = np.diff(onsets,axis=1) > 16
+		idxs = np.diff(onsets,axis=1) > gap
 		tmp = np.ones((len(onsets),1), dtype=bool)
 		idxs = np.concatenate([idxs, tmp], axis=1)
 
