@@ -69,7 +69,10 @@ def plot_SPM_X(subj, glm, run=1):
 def plot_BF(xBF):
 	xBF_ = deal_spm.get_xBF_params(xBF)
 
-	x = np.arange(xBF_['T0'],xBF_['length']+xBF_['T0'],xBF_['dt'])
+	# x = np.arange(xBF_['T0'],xBF_['length']+xBF_['T0'],xBF_['dt'])
+	t0 = xBF_['T0']
+	dt = xBF_['dt']
+	x = np.arange(t0,xBF_['length']+t0,dt)
 	y = xBF_['bf']
 
 	fig, ax = plt.subplots()
@@ -81,11 +84,12 @@ def plot_BF(xBF):
 	y = 0.007
 	dy = 0.001
 
-	x = xBF_['T0']
+	# x = xBF_['T0']
+	x = xBF_['params'][5]
 	ax.axvline(x=x, color='gray', linestyle='--', linewidth=2)
 	ax.text(x=x, y=y+dy, s='onset', ha='center', va='center')
 
-	x = xBF_['length']+xBF_['T0']
+	x = xBF_['length']+t0
 	ax.axvline(x=x, color='gray', linestyle='--', linewidth=2)
 	ax.text(x=x, y=y+dy, s='offset', ha='center', va='center')
 
