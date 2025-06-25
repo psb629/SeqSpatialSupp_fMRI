@@ -52,6 +52,14 @@ sequences = [1, 2, 3, 4]; % 1: 32451, 2:35124, 3:13254, 4:14523
 
 %% MAIN OPERATION 
 switch(what)
+    case 'SPM:resave'
+        fprintf('Resaving SPM.mat of %s\n',subj_id);
+        dir_work = fullfile(baseDir, glmDir, subj_id);
+        tmp = load(fullfile(dir_work,'SPM.mat'));
+        delete(fullfile(dir_work,'SPM.mat'));
+        SPM = tmp.SPM;
+        save(fullfile(dir_work,'SPM.mat'),'SPM','-v7.3');
+
     case 'GLM:all'
         spm_get_defaults('cmdline', true);  % Suppress GUI prompts, no request for overwirte
 
@@ -63,20 +71,22 @@ switch(what)
         % 
         % sss_GLM('GLM:design','sn',sn,'glm',glm,'hrf_params',hrf_params);
         % sss_GLM('GLM:estimate','sn',sn,'glm',glm);
-        sss_GLM('GLM:t_contrast','sn',sn,'glm',glm);
+        % sss_GLM('GLM:t_contrast','sn',sn,'glm',glm);
         % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','beta'); % https://github.com/nno/surfing.git, spm nanmean
         % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','ResMS');
-        sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','con');
-        sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','t');
+        % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','con');
+        % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','t');
 
-        % list_param = [4 14;5 15;6 16;7 17;8 18;9 19];
-        % list_param = [4 14;5 15];
-        % for i=1:length(list_param)
-        %     for j=[-1,0,1]
-        %         param=[list_param(i,1), list_param(i,2)+j];
-        %         sss_GLM('GLM:HRF_tuner','sn',sn,'glm',glm,'hrf_params',param);
-        %     end
-        % end
+        list_param = [4 14;5 15;6 16;7 17;8 18;9 19];
+        for i=1:length(list_param)
+            for j=[-1,1]
+                param=[list_param(i,1), list_param(i,2)+j];
+                % if param(1)~=6
+                %     continue
+                % end
+                sss_GLM('GLM:HRF_tuner','sn',sn,'glm',glm,'hrf_params',param);
+            end
+        end
     
     case 'GLM:init'
         D = dload(fullfile(baseDir,behavDir,sprintf('sub-%s/behav_info.tsv',subj_id)));
@@ -425,7 +435,7 @@ switch(what)
         end
         % SPM = rmfield(SPM,'xVi'); % 'xVi' take up a lot of space and slows down code!
         % save(fullfile(dir_work,'SPM_light.mat'),'SPM')
-        save(fullfile(dir_work,'SPM.mat'),'SPM','-v7');
+        save(fullfile(dir_work,'SPM.mat'),'SPM','-v7.3');
 
     case 'WB:vol2surf' % map indiv vol contrasts (.nii) onto surface (.gii)
         dir_work = fullfile(baseDir,wbDir,glmDir);
