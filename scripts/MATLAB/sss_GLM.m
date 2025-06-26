@@ -71,22 +71,24 @@ switch(what)
         % 
         % sss_GLM('GLM:design','sn',sn,'glm',glm,'hrf_params',hrf_params);
         % sss_GLM('GLM:estimate','sn',sn,'glm',glm);
-        sss_GLM('GLM:t_contrast','sn',sn,'glm',glm);
+        % sss_GLM('GLM:t_contrast','sn',sn,'glm',glm);
         % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','beta'); % https://github.com/nno/surfing.git, spm nanmean
         % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','ResMS');
-        sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','con');
-        sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','t');
+        % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','con');
+        % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','t');
 
-        % list_param = [4 14;5 15;6 16;7 17;8 18;9 19];
-        % for i=1:length(list_param)
-        %     for j=[-1,1]
-        %         param=[list_param(i,1), list_param(i,2)+j];
-        %         % if param(1)~=6
-        %         %     continue
-        %         % end
-        %         sss_GLM('GLM:HRF_tuner','sn',sn,'glm',glm,'hrf_params',param);
-        %     end
-        % end
+        list_param = [4 14;5 15;6 16];
+        for i=1:length(list_param)
+            param = list_param(i,:);
+            for j=[-1,0,1]
+                hrf = [param(1), param(2)+j];
+                for k=[3]
+                    hrf = [hrf,1,1,k];
+                    disp(hrf);
+                    sss_GLM('GLM:HRF_tuner','sn',sn,'glm',glm,'hrf_params',hrf);
+                end
+            end
+        end
     
     case 'GLM:init'
         D = dload(fullfile(baseDir,behavDir,sprintf('sub-%s/behav_info.tsv',subj_id)));
@@ -476,7 +478,7 @@ switch(what)
             % cname_idx = idx;
             % SPM = spm_contrasts(SPM,cname_idx);
         end
-        
+
         varargout{1} = SPM;
 
     case 'WB:vol2surf' % map indiv vol contrasts (.nii) onto surface (.gii)
@@ -538,6 +540,20 @@ switch(what)
 
             fprintf('mapped %s %s glm_%d \n', subj_id, hem{h}, glm);
         end
+
+    case 'check:HRF'
+        t0 = 1;
+        dt = 0.0625;
+        t1 = hrf_params(end)+dt;
+        
+        y = spm_hrf(dt,hrf_params);
+        x = linspace(t0,t1,length(y));
+        plot(x,y, 'LineWidth',3)
+        x = 0; xline(x, '--g', sprintf('onset x=%d',x), 'LineWidth',2, 'FontSize',18);
+        x = hrf_params(1); xline(x, '--r', sprintf('peak x=%d',x), 'LineWidth',2, 'FontSize',18);
+        x = hrf_params(2); xline(x, '--r', sprintf('undershoot x=%d',x), 'LineWidth',2, 'FontSize',18);
+
+        grid on
 
     case 'GLM:HRF_tuner'
         %% HRF tunning
