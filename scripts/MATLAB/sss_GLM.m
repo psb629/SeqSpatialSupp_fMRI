@@ -457,22 +457,26 @@ switch(what)
         T = dload(fullfile(dir_work,'reginfo.tsv'));
         T.reg = cellstr(string(T.reg));
 
-        nRun = 8;
+        nRun = length(SPM.Sess);
+        nCond = length(SPM.Sess(1).Fc);
         switch glm
         case 1
-            contrasts = {'Letter-Spatial'};
-            for c = 1:length(contrasts)
-                contrast_name = contrasts{c};
-                xcon = [1 -1 1 -1 1 -1 1 -1];
-                cnt = sum(xcon > 0);
-                xcon = [repmat(xcon,1,nRun) zeros(1,nRun)]'/(cnt*nRun);
-                
-                idx = 9;
-                SPM.xCon(idx) = spm_FcUtil('Set', contrast_name, 'T', 'c', xcon, SPM.xX.xKXs);
-                % cname_idx = idx;
-                % SPM = spm_contrasts(SPM,cname_idx);
-            end
+            contrasts = {'Letter','Spatial','Letter-Spatial'};
+            xcons = [1 0 1 0 1 0 1 0 ; 0 1 0 1 0 1 0 1 ; 1 -1 1 -1 1 -1 1 -1];
         end
+
+        for c = 1:length(contrasts)
+            contrast_name = contrasts{c};
+            xcon = xcons(c,:);
+            cnt = sum(xcon > 0);
+            xcon = [repmat(xcon,1,nRun) zeros(1,nRun)]'/(cnt*nRun);
+            
+            idx = nCond+c;
+            SPM.xCon(idx) = spm_FcUtil('Set', contrast_name, 'T', 'c', xcon, SPM.xX.xKXs);
+            % cname_idx = idx;
+            % SPM = spm_contrasts(SPM,cname_idx);
+        end
+        
         varargout{1} = SPM;
 
     case 'WB:vol2surf' % map indiv vol contrasts (.nii) onto surface (.gii)
