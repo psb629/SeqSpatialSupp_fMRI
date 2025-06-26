@@ -71,22 +71,22 @@ switch(what)
         % 
         % sss_GLM('GLM:design','sn',sn,'glm',glm,'hrf_params',hrf_params);
         % sss_GLM('GLM:estimate','sn',sn,'glm',glm);
-        % sss_GLM('GLM:t_contrast','sn',sn,'glm',glm);
+        sss_GLM('GLM:t_contrast','sn',sn,'glm',glm);
         % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','beta'); % https://github.com/nno/surfing.git, spm nanmean
         % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','ResMS');
-        % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','con');
-        % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','t');
+        sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','con');
+        sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','t');
 
-        list_param = [4 14;5 15;6 16;7 17;8 18;9 19];
-        for i=1:length(list_param)
-            for j=[-1,1]
-                param=[list_param(i,1), list_param(i,2)+j];
-                % if param(1)~=6
-                %     continue
-                % end
-                sss_GLM('GLM:HRF_tuner','sn',sn,'glm',glm,'hrf_params',param);
-            end
-        end
+        % list_param = [4 14;5 15;6 16;7 17;8 18;9 19];
+        % for i=1:length(list_param)
+        %     for j=[-1,1]
+        %         param=[list_param(i,1), list_param(i,2)+j];
+        %         % if param(1)~=6
+        %         %     continue
+        %         % end
+        %         sss_GLM('GLM:HRF_tuner','sn',sn,'glm',glm,'hrf_params',param);
+        %     end
+        % end
     
     case 'GLM:init'
         D = dload(fullfile(baseDir,behavDir,sprintf('sub-%s/behav_info.tsv',subj_id)));
@@ -423,19 +423,57 @@ switch(what)
                 SPM.xCon(end+1) = spm_FcUtil('Set', contrast_name, 'T', 'c', xcon, SPM.xX.xKXs);
                 cname_idx = length(SPM.xCon);
             end
-            SPM = spm_contrasts(SPM,1:length(SPM.xCon));
-            
-            % rename contrast images and spmT images
-            conName = {'con','spmT'};
-            for n = 1:numel(conName)
-                oldName = fullfile(dir_work, sprintf('%s_%2.4d.nii',conName{n},cname_idx));
-                newName = fullfile(dir_work, sprintf('%s_%s.nii',conName{n},SPM.xCon(cname_idx).name));
-                movefile(oldName, newName);
-            end
         end
+        save(fullfile(dir_work,'SPM.mat'),'SPM','-v7.3');
+
+        % extra contrasts
+        SPM = sss_GLM('GLM:custom_contrast','sn',sn,'glm',glm);
+
+        % run contrasts
+        SPM = spm_contrasts(SPM,1:length(SPM.xCon));
+            
+        % rename contrast images and spmT images
+        for idx = 1:length(SPM.xCon)
+            % con
+            oldName = fullfile(dir_work, sprintf('%s', SPM.xCon(idx).Vcon.fname));
+            newName = fullfile(dir_work, sprintf('con_%s.nii', SPM.xCon(idx).name));
+            movefile(oldName, newName);
+            % t
+            oldName = fullfile(dir_work, sprintf('%s', SPM.xCon(idx).Vspm.fname));
+            newName = fullfile(dir_work, sprintf('spmT_%s.nii', SPM.xCon(idx).name));
+            movefile(oldName, newName);
+        end
+
         % SPM = rmfield(SPM,'xVi'); % 'xVi' take up a lot of space and slows down code!
         % save(fullfile(dir_work,'SPM_light.mat'),'SPM')
         save(fullfile(dir_work,'SPM.mat'),'SPM','-v7.3');
+
+    case 'GLM:custom_contrast'
+        fprintf('(Additional) Contrasts for participant %s\n', subj_id);
+        dir_work = fullfile(baseDir, glmDir, subj_id);
+
+        SPM = load(fullfile(dir_work,'SPM.mat')); SPM=SPM.SPM;
+
+        T = dload(fullfile(dir_work,'reginfo.tsv'));
+        T.reg = cellstr(string(T.reg));
+
+        nRun = 8;
+        switch glm
+        case 1
+            contrasts = {'Letter-Spatial'};
+            for c = 1:length(contrasts)
+                contrast_name = contrasts{c};
+                xcon = [1 -1 1 -1 1 -1 1 -1];
+                cnt = sum(xcon > 0);
+                xcon = [repmat(xcon,1,nRun) zeros(1,nRun)]'/(cnt*nRun);
+                
+                idx = 9;
+                SPM.xCon(idx) = spm_FcUtil('Set', contrast_name, 'T', 'c', xcon, SPM.xX.xKXs);
+                % cname_idx = idx;
+                % SPM = spm_contrasts(SPM,cname_idx);
+            end
+        end
+        varargout{1} = SPM;
 
     case 'WB:vol2surf' % map indiv vol contrasts (.nii) onto surface (.gii)
         dir_work = fullfile(baseDir,wbDir,glmDir);
@@ -469,7 +507,7 @@ switch(what)
                 for f = 1:length(fnames)
                     V{f} = fullfile(fnames(f).folder, fnames(f).name);
                     cols{f} = fnames(f).name;
-                end  
+                end
             case 'psc' % percent signal change maps (univariate GLM)
                 fnames      = cell(1,numel(SPM.xCon));
                 con_name    = cell(1,numel(SPM.xCon));
@@ -481,6 +519,7 @@ switch(what)
                 fname{1} = fullfile(baseDir, 'patterns', sprintf('S%02d', sn),'rdm.nii');
                 con_name{1} = 'rdm';
         end
+        writecell(cols, fullfile(dir_work,sprintf('%s.%s_orders.csv',subj_id,map)), 'Delimiter', 'tab');
 
         for h = [1 2]
             white = fullfile(baseDir,wbDir,S_id,sprintf('%s.%s.white.32k.surf.gii',S_id,hem{h}));
