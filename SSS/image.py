@@ -235,3 +235,30 @@ def get_prewhitened_beta(subj, glm, region='whole', param=[5,15], hemi='L'):
 		)
 
 	return np.nan_to_num(beta_whiten, nan=0.0)
+
+def get_optimal_hrf(subj, roi, r2_score=None):
+	"""
+	Select the HRF parameter with the highest R2 score in ROI.
+
+	Return
+		param : string
+			HRF parameters
+	"""
+	df_r2 = pd.read_csv(r2_score, sep='\t', header=0)
+
+	df_tmp = df_r2.groupby(['subj','roi','param'], as_index=False).mean(['r2'])
+	df_param = df_tmp[df_tmp.r2==df_tmp.groupby(['subj','roi'])['r2'].transform('max')]
+	df_param.sort_values(by=['subj','roi'], ascending=[True,True])
+	# df_param['subj'] = df_param.subj.astype(str).str.zfill(2)
+
+	if isinstance(subj,int):
+		sidx = subj
+	else:
+		if len(subj)==3:
+			sidx = int(subj[1:])
+		elif len(subj)==2:
+			sidx = int(subj)
+
+	param = df_param[(df_param.subj==sidx)&(df_param.roi==roi)].param.values[0]
+	
+	return param
