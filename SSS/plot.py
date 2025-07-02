@@ -66,7 +66,7 @@ def plot_SPM_X(subj, glm, run=1):
 		df['onset'] = df_onset[(df_onset.run==run)&(df_onset.reg==reg)]
 		df['stim'] = 0.1
 
-def plot_BF(xBF):
+def plot_BF(xBF, ax=None):
 	xBF_ = deal_spm.get_xBF_params(xBF)
 
 	# x = np.arange(xBF_['T0'],xBF_['length']+xBF_['T0'],xBF_['dt'])
@@ -75,7 +75,8 @@ def plot_BF(xBF):
 	x = np.arange(t0,xBF_['length']+t0,dt)
 	y = xBF_['bf']
 
-	fig, ax = plt.subplots()
+	if ax is None:
+		fig, ax = plt.subplots()
 
 	ax.plot(x, y)
 	ax.grid(axis='y')
@@ -102,5 +103,7 @@ def plot_BF(xBF):
 	ax.text(x=x, y=y+dy, s='undershoot', ha='center', va='center')
 
 	ax.set_title(xBF_['params'])
-	plt.show()
+	# plt.show()
+
+	return ax
 

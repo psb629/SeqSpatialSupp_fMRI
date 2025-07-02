@@ -135,7 +135,7 @@ def convert_param_to_hrf(params=None, type='list'):
 	if isinstance(params,str):
 		params = list(map(int, re.findall(r'-?\d+', params)))
 
-	if not params==None:
+	if not params is None:
 		for ii, p in enumerate(params):
 			hrf[ii] = p
 	
