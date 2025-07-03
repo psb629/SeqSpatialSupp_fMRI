@@ -27,7 +27,7 @@ def gifti_to_cmap(label_img):
 
 	return cmap
 
-def cmap_for_cbar(label_list, cmap):
+def cmap_for_cbar(label_list, cmap, show=True):
 	N = len(label_list)
 
 	cmap_ = colormaps.get_cmap(cmap).resampled(N)
