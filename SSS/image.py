@@ -82,7 +82,9 @@ def load_hrf_tune(subj, glm, roi, param=[6,16], hemi='L', map='beta'):
 
 	hemi_ = hemi.upper()
 	fname = join(dir_work,'cifti.%s.%s.%s.%s.%s.%s.*.nii'%(hemi_,glm_,param_.replace('[','?'),subj,roi,map)) 
-	cii = nb.load(glob(fname)[0])
+	fnames = glob(fname)
+	if len(fnames)>0:
+		cii = nb.load(fnames[0])
 
 	return cii
 
