@@ -209,6 +209,20 @@ def get_WPM(subj, glm):
 
 	return white, pial, mask
 
+def calc_sigma(subj, glm, roi, hemi, param):
+	"""
+	Return
+		Sigma: 2-D numpy array
+			Covariance matrix of Y_res for the given ROI
+	"""
+
+	y_res = load_hrf_tune(subj=subj, glm=glm, roi=roi, param=param, hemi=hemi, map='y_res')
+	T, P = y_res.shape
+
+	sigma = (y_res.get_fdata().T @ y_res.get_fdata()) / T
+	
+	return sigma
+
 def get_prewhitened_beta(subj, glm, region='whole', param=[5,15], hemi='L'):
 	"""
 	Return
@@ -224,9 +238,11 @@ def get_prewhitened_beta(subj, glm, region='whole', param=[5,15], hemi='L'):
 		pp = ut.convert_param_to_hrf(params=param, type='str')
 		betas = load_hrf_tune(subj=subj, glm=glm, roi=region, param=param, hemi=hemi, map='beta').get_fdata()
 		## Sometimes 'res' contains NaN values—for example, in the M1 region of R11—but the reason is unknown.
-		res = nb.load(join(
-			ut.get_dir_roi(),'glm_%d'%glm,'cifti.%s.%s.%s.ResMS.dscalar.nii'%(hemi,subj,region)
-		)).get_fdata().reshape(-1)
+		# res = nb.load(join(
+		# 	ut.get_dir_roi(),'glm_%d'%glm,'cifti.%s.%s.%s.ResMS.dscalar.nii'%(hemi,subj,region)
+		# )).get_fdata().reshape(-1)
+		sigma = calc_sigma(subj=subj, glm=glm, roi=region, hemi=hemi, param=param)
+		res = np.diagonal(sigma)
 		
 	beta_whiten = []
 	for beta in betas:
