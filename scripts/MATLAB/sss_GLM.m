@@ -495,8 +495,21 @@ switch(what)
         nCond = length(SPM.Sess(1).Fc);
         switch glm
         case 1
+            %% (1,L), (1,S), (2,L), (2,S), (3,L), (3,S), (4,L), (4,S)
             contrasts = {'Letter','Spatial','Letter-Spatial'};
             xcons = [1 0 1 0 1 0 1 0 ; 0 1 0 1 0 1 0 1 ; 1 -1 1 -1 1 -1 1 -1];
+        case 2
+            %% B_L, B_S, C_L, C_S, N_L, N_S, S_L, S_S
+            contrasts = {
+                'Letter','Spatial','Letter-Spatial', ...
+                'wRS_L','wRS_S','wRS_L-S',...
+                'acRS_L','acRS_S','acRS_L-S',...
+            };
+            xcons = [
+                1 0 1 0 1 0 1 0; 0 1 0 1 0 1 0 1; 1 -1 1 -1 1 -1 1 -1 ;
+                1 0 -1 0 0 0 0 0 ; 0 1 0 -1 0 0 0 0 ; 1 -1 -1 1 0 0 0 0 ;
+                0 0 0 0 -1 0 1 0 ; 0 0 0 0 0 -1 0 1 ; 0 0 0 0 -1 1 1 -1 ;
+            ];
         end
 
         for c = 1:length(contrasts)
