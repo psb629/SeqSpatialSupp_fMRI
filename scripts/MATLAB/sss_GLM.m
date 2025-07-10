@@ -63,32 +63,32 @@ switch(what)
     case 'GLM:all'
         spm_get_defaults('cmdline', true);  % Suppress GUI prompts, no request for overwirte
 
-        % % Check for and delete existing SPM.mat file
-        % spm_file = fullfile(baseDir,glmDir,subj_id,'SPM.mat');
-        % if exist(spm_file, 'file')
-        %     delete(spm_file);
-        % end
-        % 
-        % sss_GLM('GLM:design','sn',sn,'glm',glm,'hrf_params',hrf_params);
-        % sss_GLM('GLM:estimate','sn',sn,'glm',glm);
-        % sss_GLM('GLM:t_contrast','sn',sn,'glm',glm);
+        % Check for and delete existing SPM.mat file
+        spm_file = fullfile(baseDir,glmDir,subj_id,'SPM.mat');
+        if exist(spm_file, 'file')
+            delete(spm_file);
+        end
+
+        sss_GLM('GLM:design','sn',sn,'glm',glm,'hrf_params',hrf_params);
+        sss_GLM('GLM:estimate','sn',sn,'glm',glm);
+        sss_GLM('GLM:t_contrast','sn',sn,'glm',glm);
         % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','beta'); % https://github.com/nno/surfing.git, spm nanmean
         % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','ResMS');
         % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','con');
         % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','t');
 
-        list_param = [4 14;5 15;6 16];
-        for i=1:length(list_param)
-            param = list_param(i,:);
-            for j=[-1,0,1]
-                hrf = [param(1), param(2)+j];
-                for k=[3]
-                    hrf = [hrf,1,1,k];
-                    disp(hrf);
-                    sss_GLM('GLM:HRF_tuner','sn',sn,'glm',glm,'hrf_params',hrf);
-                end
-            end
-        end
+        % list_param = [4 14;5 15;6 16];
+        % for i=1:length(list_param)
+        %     param = list_param(i,:);
+        %     for j=[-1,0,1]
+        %         hrf = [param(1), param(2)+j];
+        %         for k=[3]
+        %             hrf = [hrf,1,1,k];
+        %             disp(hrf);
+        %             sss_GLM('GLM:HRF_tuner','sn',sn,'glm',glm,'hrf_params',hrf);
+        %         end
+        %     end
+        % end
     
     case 'GLM:init'
         D = dload(fullfile(baseDir,behavDir,sprintf('sub-%s/behav_info.tsv',subj_id)));
@@ -141,17 +141,49 @@ switch(what)
         [D, events] = sss_GLM('GLM:init','sn',sn,'glm',glm);
         
         %% GLM2 : Repetition Suppression
-        % |(s,c)|(0,0)|(0,1)|(1,0)|(1,1)|(2,0)|(2,1)|(3,0)|(3,1)| 
+        % |(s,c)|(1,L)|(1,S)|(2,L)|(2,S)|(3,L)|(3,S)|(4,L)|(4,S)| 
         % |-----|-----|-----|-----|-----|-----|-----|-----|-----|
-        % |(0,0)|(B00 | S01 | C02 | N03)| C04 | N05 | C06 | N07 |
-        % |(0,1)|(    | B09 | N10 | C11)| N12 | C13 | N14 | C15 |
-        % |(1,0)|(    |     | B18 | S19)| C20 | N21 | C22 | N23 |
-        % |(1,1)|(    |     |     | B27)| N28 | C29 | N30 | C31 |
-        % |(2,0)|     |     |     |     |(B36 | S37 | C38 | N39)|
-        % |(2,1)|     |     |     |     |(    | B45 | N46 | C47)|
-        % |(3,0)|     |     |     |     |(    |     | B54 | S55)|
-        % |(3,1)|     |     |     |     |(    |     |     | B63)|
+        % |(1,L)|(B00 | S01 | C02 | N03)| C04 | N05 | C06 | N07 |
+        % |(1,S)|(    | B09 | N10 | C11)| N12 | C13 | N14 | C15 |
+        % |(2,L)|(    |     | B18 | S19)| C20 | N21 | C22 | N23 |
+        % |(2,S)|(    |     |     | B27)| N28 | C29 | N30 | C31 |
+        % |(3,L)|     |     |     |     |(B36 | S37 | C38 | N39)|
+        % |(3,S)|     |     |     |     |(    | B45 | N46 | C47)|
+        % |(4,L)|     |     |     |     |(    |     | B54 | S55)|
+        % |(4,S)|     |     |     |     |(    |     |     | B63)|
         % B: Both-Rep, S: Seq-Rep, C: Cue-Rep, N: No-Rep, (First Finger)
+
+        onset_shift = -(numDummys*TR) * 1000;
+
+        for t = 1:length(D.TN)
+            trial = D.TN(t);
+            if trial == 1
+                continue
+            end
+            events.BN = [events.BN; D.BN(t)];
+            events.TN = [events.TN; trial];
+            events.onset = [events.onset; D.onset(t)+D.prepTime(t)+onset_shift];
+            events.duration = [events.duration; 2000];
+            %% current trial
+            seq_f = D.sequence(t);
+            cue_f = string(D.cue(t));
+            events.seq = [events.seq; seq_f];
+            events.cue = [events.cue; cue_f];
+            [TS_f, ~] = get_TS(seq_f, cue_f);
+            %% Previous trial
+            seq_i = D.sequence(t-1);
+            cue_i = string(D.cue(t-1));
+            [TS_i, ~] = get_TS(seq_i, cue_i);
+            %% Transition
+            [~, Trans] = get_Trans(TS_i, TS_f);
+            events.eventname = [events.eventname; Trans];
+        end
+        
+        events = struct2table(events);
+        events.onset = events.onset .* 0.001;
+        events.duration = events.duration .* 0.001;
+
+        varargout{1} = events;
 
     case 'GLM:get_event'
         w = sprintf('GLM:make_glm_%d',glm);
@@ -256,8 +288,8 @@ switch(what)
                 TT.run      = run;
                 TT.cond     = regr;
                 TT.regIdx   = itaskUni;
-                TT.seq      = unique(Dd.seq(rows));
-                TT.cue      = unique(Dd.cue(rows));
+                % TT.seq      = unique(Dd.seq(rows));
+                % TT.cue      = unique(Dd.cue(rows));
                 TT.reg      = cellstr(regressors(regr));
                 % TT.n_rep     = sum(idx);
         
