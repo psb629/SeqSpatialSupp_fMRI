@@ -112,13 +112,6 @@ def get_list_seq():
 
 	return np.array([32451, 35124, 13254, 14523])
 
-def get_reginfo(subj, glm):
-	dir_glm = get_dir_glm(glm)
-	reginfo = join(dir_glm, subj, 'reginfo.tsv')
-	df = pd.read_csv(reginfo, delimiter='\t')
-
-	return df
-
 def convert_param_to_hrf(params=None, type='list'):
 	# p(1) - delay of response (relative to onset)          6
 	# p(2) - delay of undershoot (relative to onset)       16

@@ -74,7 +74,7 @@ switch(what)
         sss_GLM('GLM:t_contrast','sn',sn,'glm',glm);
         % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','beta'); % https://github.com/nno/surfing.git, spm nanmean
         % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','ResMS');
-        % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','con');
+        sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','con');
         % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','t');
 
         % list_param = [4 14;5 15;6 16];

@@ -239,3 +239,11 @@ def get_xBF_params(xBF):
 
 	return xBF_
 
+def load_reginfo(subj, glm):
+	dir_glm = ut.get_dir_glm(glm)
+	reginfo = pd.read_csv(
+		join(dir_glm,subj,'reginfo.tsv'),
+		sep='\t', header=0
+	)
+
+	return reginfo
