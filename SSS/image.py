@@ -281,11 +281,11 @@ def get_optimal_hrf(subj, roi, r2_score=None):
 	
 	return param
 
-def load_contrast_order(subj, glm):
+def load_contrast_order(subj, glm, map='con'):
 	dir_work = join(ut.get_dir_surf(),'glm_%d'%glm)
 
 	order = np.genfromtxt(
-		join(dir_work,'%s.con_orders.csv'%subj),
+		join(dir_work,'%s.%s_orders.csv'%(subj,map)),
 		delimiter='\t', dtype=str
 	)
 
