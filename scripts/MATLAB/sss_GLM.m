@@ -27,6 +27,9 @@ sn = [];
 glm = [];
 vararginoptions(varargin,{'sn','glm','nTRs','hrf_params','map'});
 hrf_params = [hrf_params hrf_params_default(length(hrf_params)+1:end)];
+if length(hrf_params)~=length(hrf_params_default)
+    error('Wrong hrf_param [%s].',num2str(hrf_params))
+end
 
 if isempty(sn)
     error('GLM:design -> ''sn'' must be passed to this function.')
@@ -63,33 +66,47 @@ switch(what)
     case 'GLM:all'
         spm_get_defaults('cmdline', true);  % Suppress GUI prompts, no request for overwirte
 
-        % Check for and delete existing SPM.mat file
-        spm_file = fullfile(baseDir,glmDir,subj_id,'SPM.mat');
-        if exist(spm_file, 'file')
-            delete(spm_file);
-        end
+        %% Check for and delete existing SPM.mat file
+        % spm_file = fullfile(baseDir,glmDir,subj_id,'SPM.mat');
+        % if exist(spm_file, 'file')
+        %     delete(spm_file);
+        % end
 
+        %% Run
         sss_GLM('GLM:design','sn',sn,'glm',glm,'hrf_params',hrf_params);
         sss_GLM('GLM:estimate','sn',sn,'glm',glm);
         sss_GLM('GLM:t_contrast','sn',sn,'glm',glm);
         % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','beta'); % https://github.com/nno/surfing.git, spm nanmean
         % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','ResMS');
-        sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','con');
+        % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','con');
         % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','t');
 
+        %% HRF tunning
         % list_param = [4 14;5 15;6 16];
         % for i=1:length(list_param)
         %     param = list_param(i,:);
         %     for j=[-1,0,1]
-        %         hrf = [param(1), param(2)+j];
-        %         for k=[3]
-        %             hrf = [hrf,1,1,k];
+        %         tmp = [param(1), param(2)+j];
+        %         for k=[6,3]
+        %             hrf = [tmp,1,1,k];
         %             disp(hrf);
         %             sss_GLM('GLM:HRF_tuner','sn',sn,'glm',glm,'hrf_params',hrf);
         %         end
         %     end
         % end
-    
+
+    case 'GLM:get_event'
+        w = sprintf('GLM:make_glm_%d',glm);
+        events = sss_GLM(w,'sn',sn,'glm',glm);
+
+        % dir_work = fullfile(baseDir,behavDir,sprintf('sub-%s',subj_id));
+        % if (~exist(dir_work,'dir'))
+        %     mkdir(dir_work);
+        % end
+
+        % writetable(events, fullfile(dir_work, sprintf('glm_%d.tsv', glm)), 'FileType', 'text', 'Delimiter', '\t')
+        varargout{1} = events;
+
     case 'GLM:init'
         D = dload(fullfile(baseDir,behavDir,sprintf('sub-%s/behav_info.tsv',subj_id)));
         % runs = 1:8;
@@ -157,9 +174,7 @@ switch(what)
 
         for t = 1:length(D.TN)
             trial = D.TN(t);
-            if trial == 1
-                continue
-            end
+            
             events.BN = [events.BN; D.BN(t)];
             events.TN = [events.TN; trial];
             events.onset = [events.onset; D.onset(t)+D.prepTime(t)+onset_shift];
@@ -169,6 +184,10 @@ switch(what)
             cue_f = string(D.cue(t));
             events.seq = [events.seq; seq_f];
             events.cue = [events.cue; cue_f];
+            if mod(trial,17) == 1
+                events.eventname = [events.eventname; "Rest"];
+                continue
+            end
             [TS_f, ~] = get_TS(seq_f, cue_f);
             %% Previous trial
             seq_i = D.sequence(t-1);
@@ -185,18 +204,46 @@ switch(what)
 
         varargout{1} = events;
 
-    case 'GLM:get_event'
-        w = sprintf('GLM:make_glm_%d',glm);
-        events = sss_GLM(w,'sn',sn,'glm',glm);
+    case 'GLM:make_glm_3'
 
-        % dir_work = fullfile(baseDir,behavDir,sprintf('sub-%s',subj_id));
-        % if (~exist(dir_work,'dir'))
-        %     mkdir(dir_work);
-        % end
+        [D, events] = sss_GLM('GLM:init','sn',sn,'glm',glm);
+        
+        %% GLM3 : Repetition Suppression (2)
 
-        % writetable(events, fullfile(dir_work, sprintf('glm_%d.tsv', glm)), 'FileType', 'text', 'Delimiter', '\t')
+        onset_shift = -(numDummys*TR) * 1000;
+
+        for t = 1:length(D.TN)
+            trial = D.TN(t);
+            
+            events.BN = [events.BN; D.BN(t)];
+            events.TN = [events.TN; trial];
+            events.onset = [events.onset; D.onset(t)+D.prepTime(t)+onset_shift];
+            events.duration = [events.duration; 2000];
+            %% current trial
+            seq_f = D.sequence(t);
+            cue_f = string(D.cue(t));
+            events.seq = [events.seq; seq_f];
+            events.cue = [events.cue; cue_f];
+            if trial == 1
+                events.eventname = [events.eventname; "Rest"];
+                continue
+            end
+            [TS_f, ~] = get_TS(seq_f, cue_f);
+            %% Previous trial
+            seq_i = D.sequence(t-1);
+            cue_i = string(D.cue(t-1));
+            [TS_i, ~] = get_TS(seq_i, cue_i);
+            %% Transition
+            [~, Trans] = get_Trans(TS_i, TS_f);
+            events.eventname = [events.eventname; Trans];
+        end
+        
+        events = struct2table(events);
+        events.onset = events.onset .* 0.001;
+        events.duration = events.duration .* 0.001;
+
         varargout{1} = events;
-    
+
     case 'GLM:design'
         %% dependency:
         % https://github.com/spm/spm.git
@@ -499,16 +546,16 @@ switch(what)
             contrasts = {'Letter','Spatial','Letter-Spatial'};
             xcons = [1 0 1 0 1 0 1 0 ; 0 1 0 1 0 1 0 1 ; 1 -1 1 -1 1 -1 1 -1];
         case 2
-            %% B_L, B_S, C_L, C_S, N_L, N_S, S_L, S_S
+            %% B_L, B_S, C_L, C_S, N_L, N_S, Rest, S_L, S_S
             contrasts = {
                 'Letter','Spatial','Letter-Spatial', ...
                 'wRS_L','wRS_S','wRS_L-S',...
                 'acRS_L','acRS_S','acRS_L-S',...
             };
             xcons = [
-                1 0 1 0 1 0 1 0; 0 1 0 1 0 1 0 1; 1 -1 1 -1 1 -1 1 -1 ;
-                1 0 -1 0 0 0 0 0 ; 0 1 0 -1 0 0 0 0 ; 1 -1 -1 1 0 0 0 0 ;
-                0 0 0 0 -1 0 1 0 ; 0 0 0 0 0 -1 0 1 ; 0 0 0 0 -1 1 1 -1 ;
+                1 0 1 0 1 0 0 1 0 ; 0 1 0 1 0 1 0 0 1 ; 1 -1 1 -1 1 -1 0 1 -1 ;
+                1 0 -1 0 0 0 0 0 0 ; 0 1 0 -1 0 0 0 0 0 ; 1 -1 -1 1 0 0 0 0 0 ;
+                0 0 0 0 -1 0 0 1 0 ; 0 0 0 0 0 -1 0 0 1 ; 0 0 0 0 -1 1 0 1 -1 ;
             ];
         end
 
