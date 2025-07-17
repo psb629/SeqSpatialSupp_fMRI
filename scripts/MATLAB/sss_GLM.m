@@ -73,27 +73,27 @@ switch(what)
         % end
 
         %% Run
-        sss_GLM('GLM:design','sn',sn,'glm',glm,'hrf_params',hrf_params);
-        sss_GLM('GLM:estimate','sn',sn,'glm',glm);
-        sss_GLM('GLM:t_contrast','sn',sn,'glm',glm);
+        % sss_GLM('GLM:design','sn',sn,'glm',glm,'hrf_params',hrf_params);
+        % sss_GLM('GLM:estimate','sn',sn,'glm',glm);
+        % sss_GLM('GLM:t_contrast','sn',sn,'glm',glm);
         % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','beta'); % https://github.com/nno/surfing.git, spm nanmean
         % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','ResMS');
         % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','con');
         % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','t');
 
         %% HRF tunning
-        % list_param = [4 14;5 15;6 16];
-        % for i=1:length(list_param)
-        %     param = list_param(i,:);
-        %     for j=[-1,0,1]
-        %         tmp = [param(1), param(2)+j];
-        %         for k=[6,3]
-        %             hrf = [tmp,1,1,k];
-        %             disp(hrf);
-        %             sss_GLM('GLM:HRF_tuner','sn',sn,'glm',glm,'hrf_params',hrf);
-        %         end
-        %     end
-        % end
+        list_param = [4 14;5 15;6 16];
+        for i=1:length(list_param)
+            param = list_param(i,:);
+            for j=[-1,0,1]
+                tmp = [param(1), param(2)+j];
+                for k=[6,3]
+                    hrf = [tmp,1,1,k];
+                    disp(hrf);
+                    sss_GLM('GLM:HRF_tuner','sn',sn,'glm',glm,'hrf_params',hrf);
+                end
+            end
+        end
 
     case 'GLM:get_event'
         w = sprintf('GLM:make_glm_%d',glm);
