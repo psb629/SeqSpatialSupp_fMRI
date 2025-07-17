@@ -188,26 +188,35 @@ def get_SPM_X(SPM, run=1):
 
 	return X[idx_r,:][:,idx_c]
 
-def get_df_X(SPM):
+def get_df_X(SPM, mean=False):
 	"""
 	Output
 		df: pandas dataframe
 			Design matrix for the regressors of interest for all runs.
 	"""
-	# nTRs = 410
-	nRuns = 8
+	nrun = 8
+	head = get_column_head(SPM).reshape(nrun,-1)[0]
 
-	df = pd.DataFrame()
-	for rr in range(nRuns):
+	df_list = []
+	for rr in range(nrun):
 		run = rr+1
 		X = get_SPM_X(SPM, run=run)
-		df[run] = X.sum(axis=1)
-	df.reset_index(inplace=True)
-	df = df.melt(
-		id_vars = ['index'],
-		value_vars = np.arange(nRuns)+1, var_name = 'run', value_name = 'X_sum'
-	)
-	df.rename(columns={'index':'TR'}, inplace=True)
+		df = pd.DataFrame(X)
+		nrows, ncols = df.shape
+		df['Run']=run
+		df['TR']=np.arange(nrows)
+		df_list.append(df)
+	df = pd.concat(df_list, ignore_index=True)
+	df = df.filter(['Run','TR',*np.arange(ncols)])
+
+	columns = {}
+	for ii, reg in enumerate(head):
+		columns[ii]=reg
+		df.rename(columns=columns, inplace=True)
+
+	if mean:
+		df['mean'] = df.drop(columns=['Run','TR']).mean(axis=1)
+		df = df.filter(['Run','TR','mean'])
 
 	return df
 
