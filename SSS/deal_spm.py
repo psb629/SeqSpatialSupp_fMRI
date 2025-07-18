@@ -188,7 +188,7 @@ def get_SPM_X(SPM, run=1):
 
 	return X[idx_r,:][:,idx_c]
 
-def get_df_X(SPM, mean=False):
+def get_df_X(SPM, melt=False, mean=False):
 	"""
 	Output
 		df: pandas dataframe
@@ -214,7 +214,15 @@ def get_df_X(SPM, mean=False):
 		columns[ii]=reg
 		df.rename(columns=columns, inplace=True)
 
-	if mean:
+	if melt:
+		df = df.melt(
+			id_vars=['Run','TR'],
+			value_vars=df.columns.drop(['Run','TR']),
+			var_name='reg',
+			value_name='X'
+		)
+
+	elif mean:
 		df['mean'] = df.drop(columns=['Run','TR']).mean(axis=1)
 		df = df.filter(['Run','TR','mean'])
 
