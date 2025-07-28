@@ -73,27 +73,28 @@ switch(what)
         % end
 
         %% Run
-        % sss_GLM('GLM:design','sn',sn,'glm',glm,'hrf_params',hrf_params);
-        % sss_GLM('GLM:estimate','sn',sn,'glm',glm);
-        % sss_GLM('GLM:t_contrast','sn',sn,'glm',glm);
-        % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','beta'); % https://github.com/nno/surfing.git, spm nanmean
-        % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','ResMS');
-        % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','con');
-        % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','t');
+        sss_GLM('GLM:design','sn',sn,'glm',glm,'hrf_params',hrf_params);
+        sss_GLM('GLM:estimate','sn',sn,'glm',glm);
+        sss_GLM('GLM:t_contrast','sn',sn,'glm',glm);
+        sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','beta'); % https://github.com/nno/surfing.git, spm nanmean
+        sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','ResMS');
+        sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','con');
+        sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','t');
 
         %% HRF tunning
-        list_param = [4 14;5 15;6 16];
-        for i=1:length(list_param)
-            param = list_param(i,:);
-            for j=[-1,0,1]
-                tmp = [param(1), param(2)+j];
-                for k=[6,3]
-                    hrf = [tmp,1,1,k];
-                    disp(hrf);
-                    sss_GLM('GLM:HRF_tuner','sn',sn,'glm',glm,'hrf_params',hrf);
-                end
-            end
-        end
+        % onset = 0;
+        % list_param = [4 14;5 15;6 16];
+        % for i=1:length(list_param)
+        %     param = list_param(i,:);
+        %     for j=[-1,0,1]
+        %         tmp = [param(1), param(2)+j];
+        %         for k=[6,3]
+        %             hrf = [tmp,1,1,k,onset];
+        %             disp(hrf);
+        %             sss_GLM('GLM:HRF_tuner','sn',sn,'glm',glm,'hrf_params',hrf);
+        %         end
+        %     end
+        % end
 
     case 'GLM:get_event'
         w = sprintf('GLM:make_glm_%d',glm);
@@ -184,6 +185,7 @@ switch(what)
             cue_f = string(D.cue(t));
             events.seq = [events.seq; seq_f];
             events.cue = [events.cue; cue_f];
+            %% Drop the first trial of each block 
             if mod(trial,17) == 1
                 events.eventname = [events.eventname; "Rest"];
                 continue
@@ -206,33 +208,35 @@ switch(what)
 
     case 'GLM:make_glm_3'
 
+        % varargout{1} = sss_GLM('GLM:make_glm_2','sn',sn,'glm',2);
+
         [D, events] = sss_GLM('GLM:init','sn',sn,'glm',glm);
         
-        %% GLM3 : Repetition Suppression (2)
-
+        %% GLM3 : Repetition Suppression 2
         onset_shift = -(numDummys*TR) * 1000;
 
-        for t = 1:length(D.TN)
+        for t = 1:length(D.TN)-1
             trial = D.TN(t);
-            
+
             events.BN = [events.BN; D.BN(t)];
             events.TN = [events.TN; trial];
             events.onset = [events.onset; D.onset(t)+D.prepTime(t)+onset_shift];
             events.duration = [events.duration; 2000];
             %% current trial
-            seq_f = D.sequence(t);
-            cue_f = string(D.cue(t));
+            seq_i = D.sequence(t);
+            cue_i = string(D.cue(t));
+            [TS_i, ~] = get_TS(seq_i, cue_i);
+            %% Next trial
+            seq_f = D.sequence(t+1);
+            cue_f = string(D.cue(t+1));
             events.seq = [events.seq; seq_f];
             events.cue = [events.cue; cue_f];
-            if trial == 1
+            %% Drop the last trial of each block 
+            if mod(trial,17) == 0
                 events.eventname = [events.eventname; "Rest"];
                 continue
             end
             [TS_f, ~] = get_TS(seq_f, cue_f);
-            %% Previous trial
-            seq_i = D.sequence(t-1);
-            cue_i = string(D.cue(t-1));
-            [TS_i, ~] = get_TS(seq_i, cue_i);
             %% Transition
             [~, Trans] = get_Trans(TS_i, TS_f);
             events.eventname = [events.eventname; Trans];
@@ -545,7 +549,7 @@ switch(what)
             %% (1,L), (1,S), (2,L), (2,S), (3,L), (3,S), (4,L), (4,S)
             contrasts = {'Letter','Spatial','Letter-Spatial'};
             xcons = [1 0 1 0 1 0 1 0 ; 0 1 0 1 0 1 0 1 ; 1 -1 1 -1 1 -1 1 -1];
-        case 2
+        case {2,3}
             %% B_L, B_S, C_L, C_S, N_L, N_S, Rest, S_L, S_S
             contrasts = {
                 'Letter','Spatial','Letter-Spatial', ...
