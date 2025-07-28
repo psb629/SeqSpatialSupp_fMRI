@@ -38,7 +38,7 @@ SPM_folder  = fullfile(baseDir,glmDir,subj_id);
 stimdur     = 2;
 
 % Name of directory to which outputs will be saved
-outputdir   = fullfile(baseDir,'GLMsingle');
+outputdir   = fullfile(baseDir,'GLMsingle',glmDir);
 
 %
 SPM = load(fullfile(SPM_folder,'SPM.mat'));
