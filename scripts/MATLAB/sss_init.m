@@ -17,7 +17,6 @@ imagingDir      = 'imaging_data';               % Preprocesses functional data
 anatomicalDir   = 'anatomicals';                % Preprocessed anatomicalcentr data (LPI + center AC + segemnt)
 fmapDir         = 'fieldmaps';                  % Fieldmap dir after moving from BIDS and SPM make fieldmap
 suitDir         = 'suit';
-regDir          = 'RegionOfInterest';
 freesurferDir   = 'freesurf';
 wbDir           = 'surfaceWB';
 roiDir          = 'ROI';
