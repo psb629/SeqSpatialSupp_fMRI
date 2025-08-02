@@ -79,7 +79,7 @@ opt = struct('wantmemoryoutputs',[0 0 0 1]);
 
 % =========== Ali's stuff after glm single fit
 % copy subject glm mask to glmsingle direcotry:
-copyfile(fullfile(baseDir,'glm1',subj_id,'mask.nii'),fullfile(outputdir,subj_id,'mask.nii'));
+copyfile(mask,fullfile(outputdir,subj_id,'mask.nii'));
 
 
 % Save betas as nifti:
@@ -118,9 +118,10 @@ for b = blocks
     D.iti(idx(2:end),1) = iti;
 end
 
-info_base = niftiinfo(fullfile(baseDir,'glm1',subj_id,'beta_0001.nii'));
+info_base = niftiinfo(fullfile(baseDir,'glm_1',subj_id,'beta_0001.nii'));
 sz = size(m.modelmd);
 
+niftidir = fullfile(outputdir, subj_id);
 for i = 1:sz(4)
     % make nifti:
     info = info_base;
@@ -133,8 +134,7 @@ for i = 1:sz(4)
     nii = m.modelmd(:,:,:,i);
 
     % save nifti:
-    niftidir = fullfile(outputdir,subj_id);
-    niftiwrite(nii,fullfile(niftidir,sprintf('beta_%.4d.nii',i)), info);
+    niftiwrite(nii,fullfile(niftidir, sprintf('beta_%.4d.nii',i)), info);
 end
 
 % make reginfo.tsv:
@@ -154,7 +154,6 @@ info.Filesize = [];
 descrip = 'glmsingle:R2 percent';
 info.Description = descrip;
 info.raw.descrip = descrip;
-niftidir = fullfile(outputdir,subj_id);
 niftiwrite(R2,fullfile(niftidir,'R2.nii'), info);
 
 
@@ -189,7 +188,6 @@ for i = 1:length(conditions)
     descrip = sprintf('t-stats:%s',conditions{i});
     infotmp.Description = descrip;
     infotmp.raw.descrip = descrip;
-    niftidir = fullfile(outputdir,subj_id);
     niftiwrite(tstats,fullfile(niftidir,sprintf('tmap_%s.nii',replace(conditions{i},":", "-"))), infotmp);
 end
 
