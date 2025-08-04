@@ -74,7 +74,9 @@ Index (s,c)
 
 #### i) GLM = 1: Trial State (s,c)
 i-1) onset: trial onset + prep (1s)
+
 i-2) duration: 2s
+
 - 1: (0,0)
 - 2: (0,1)
 - 3: (1,0)
@@ -86,6 +88,7 @@ i-2) duration: 2s
 
 #### ii) GLM = 2: Repetition
 ii-1) onset: trial onset + prep (1s)
+
 ii-2) duration: 2s
 
 |  | trial $t-1$ | trial $t$ |
