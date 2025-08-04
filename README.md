@@ -72,7 +72,21 @@ Index (s,c)
 	- c=0: Letter
 	- c=1: Spatial
 
-i) GLM = 2: Repetition
+#### i) GLM = 1: Trial State (s,c)
+i-1) onset: trial onset + prep (1s)
+i-2) duration: 2s
+- 1: (0,0)
+- 2: (0,1)
+- 3: (1,0)
+- 4: (1,1)
+- 5: (2,0)
+- 6: (2,1)
+- 7: (3,0)
+- 8: (3,1)
+
+#### ii) GLM = 2: Repetition
+ii-1) onset: trial onset + prep (1s)
+ii-2) duration: 2s
 
 |  | trial $t-1$ | trial $t$ |
 |---------|---------|---------|
@@ -92,13 +106,3 @@ i) GLM = 2: Repetition
 |(3,0)|     |     |     |     |     |     |  B  | S27 |
 |(3,1)|     |     |     |     |     |     |     |  B  |
 
-ii) GLM = 3: Trial State (s,c)
-- 1: (0,0)
-- 2: (0,1)
-- 3: (1,0)
-- 4: (1,1)
-- 5: (2,0)
-- 6: (2,1)
-- 7: (3,0)
-- 8: (3,1)
-- 9: failed
