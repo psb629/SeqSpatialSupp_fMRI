@@ -14,9 +14,12 @@ import surfAnalysisPy as surf
 # import Functional_Fusion.atlas_map as am
 # import Functional_Fusion.reliability as rel
 
-def get_dir_glmsingle(glm):
+def get_dir_glmsingle(glm=None):
+	dir_work = join(ut.get_dir_root(),'GLMsingle')
+	if glm is not None:
+		dir_work = join(dir_work,'glm_%d'%glm)
 
-	return join(ut.get_dir_root(),'GLMsingle','glm_%d'%glm)
+	return dir_work
 
 def load_reginfo(subj, glm):
 	dir_glm = get_dir_glmsingle(glm)
@@ -29,3 +32,10 @@ def load_reginfo(subj, glm):
 	reginfo['beta']=fnames
 
 	return reginfo
+
+def load_map_order(subj, glm, map):
+	dir_surf = join(get_dir_glmsingle(glm),'surfaceWB')
+	fname = join(dir_surf,subj,'%s.%s_orders.csv'%(subj,map))
+	order = np.loadtxt(fname, delimiter='\t',dtype=str)
+
+	return order
