@@ -206,13 +206,13 @@ switch(what)
 
         varargout{1} = events;
 
-    case 'GLM:make_glm_3'
+    case 'GLM:make_glm_2-ii'
 
         % varargout{1} = sss_GLM('GLM:make_glm_2','sn',sn,'glm',2);
 
         [D, events] = sss_GLM('GLM:init','sn',sn,'glm',glm);
         
-        %% GLM3 : Repetition Suppression 2
+        %% GLM2-ii : Repetition Suppression 2
         onset_shift = -(numDummys*TR) * 1000;
 
         for t = 1:length(D.TN)-1
@@ -240,6 +240,39 @@ switch(what)
             %% Transition
             [~, Trans] = get_Trans(TS_i, TS_f);
             events.eventname = [events.eventname; Trans];
+        end
+        
+        events = struct2table(events);
+        events.onset = events.onset .* 0.001;
+        events.duration = events.duration .* 0.001;
+
+        varargout{1} = events;
+
+    case 'GLM:make_glm_3'
+
+        [D, events] = sss_GLM('GLM:init','sn',sn,'glm',glm);
+
+        %% GLM3 : GLM1 + Preparation
+        % 1: (1,L), 2: (1,S), 3: (2,L), 4: (2,S), 5: (3,L), 6: (3,S), 7: (4,L), 8: (4,S)
+        events = sss_GLM('GLM:make_glm_1','sn',sn,'glm',1);
+
+        % 1+8: p(1,L), 2+8: p(1,S), 3+8: p(2,L), 4+8: p(2,S), 5+8: p(3,L), 6+8: p(3,S), 7+8: p(4,L), 8+8: p(4,S)
+
+        onset_shift = -(numDummys*TR) * 1000;
+
+        for idx_s = 1:length(sequences)
+            % preparation
+            for idx_c = 1:length(cues)
+                row_idxs = ismember(D.cue,cues(idx_c)) & ismember(D.sequence,sequences(idx_s));
+
+                events.BN = [events.BN; D.BN(row_idxs)];
+                events.TN = [events.TN; D.TN(row_idxs)];
+                events.onset = [events.onset; 0.001*(D.onset(row_idxs)+onset_shift)];
+                events.duration = [events.duration; 0.001*repmat(100, [sum(row_idxs), 1])];
+                events.seq = [events.seq; D.sequence(row_idxs)];
+                events.cue = [events.cue; D.cue(row_idxs)];
+                events.eventname = [events.eventname; repmat(sprintf("(%d,%s)",sequences(idx_s),cues(idx_c)), [sum(row_idxs), 1])];
+            end
         end
         
         events = struct2table(events);
