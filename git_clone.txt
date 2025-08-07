@@ -1,0 +1,7 @@
+https://github.com/DiedrichsenLab/nitools.git
+https://github.com/DiedrichsenLab/SUITPy.git
+https://github.com/DiedrichsenLab/surfAnalysisPy.git
+https://github.com/DiedrichsenLab/Functional_Fusion.git
+https://github.com/DiedrichsenLab/PcmPy.git
+https://github.com/DiedrichsenLab/fs_LR_32.git
+https://github.com/DiedrichsenLab/region.git
