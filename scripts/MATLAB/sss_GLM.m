@@ -1,7 +1,7 @@
 function varargout = sss_GLM(what,varargin)
 
 if ispc
-    cd '\\wsl.localhost/ubuntu-24.04/home/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
+    cd '\\wsl.localhost/ubuntu-22.04/home/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
 elseif ismac
     cd '/Users/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
 end
@@ -25,7 +25,7 @@ map = 'beta';
 %% argument inputs
 sn = [];
 glm = [];
-vararginoptions(varargin,{'sn','glm','nTRs','hrf_params','map'}); % https://github.com/DiedrichsenLab/dataframe.git
+vararginoptions(varargin,{'sn','glm','nTRs','hrf_params','map'});
 hrf_params = [hrf_params hrf_params_default(length(hrf_params)+1:end)];
 if length(hrf_params)~=length(hrf_params_default)
     error('Wrong hrf_param [%s].',num2str(hrf_params))
@@ -75,11 +75,11 @@ switch(what)
         %% Run
         sss_GLM('GLM:design','sn',sn,'glm',glm,'hrf_params',hrf_params);
         sss_GLM('GLM:estimate','sn',sn,'glm',glm);
-        sss_GLM('GLM:t_contrast','sn',sn,'glm',glm);
-        sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','beta'); % https://github.com/nno/surfing.git, spm nanmean
-        sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','ResMS');
-        sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','con');
-        sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','t');
+        % sss_GLM('GLM:t_contrast','sn',sn,'glm',glm);
+        % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','beta'); % https://github.com/nno/surfing.git, spm nanmean
+        % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','ResMS');
+        % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','con');
+        % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','t');
 
         %% HRF tunning
         % onset = 0;
@@ -250,11 +250,11 @@ switch(what)
 
     case 'GLM:make_glm_3'
 
-        [D, events] = sss_GLM('GLM:init','sn',sn,'glm',glm);
+        [D, events2] = sss_GLM('GLM:init','sn',sn,'glm',glm);
 
         %% GLM3 : GLM1 + Preparation
         % 1: (1,L), 2: (1,S), 3: (2,L), 4: (2,S), 5: (3,L), 6: (3,S), 7: (4,L), 8: (4,S)
-        events = sss_GLM('GLM:make_glm_1','sn',sn,'glm',1);
+        events1 = sss_GLM('GLM:make_glm_1','sn',sn,'glm',1);
 
         % 1+8: p(1,L), 2+8: p(1,S), 3+8: p(2,L), 4+8: p(2,S), 5+8: p(3,L), 6+8: p(3,S), 7+8: p(4,L), 8+8: p(4,S)
 
@@ -265,21 +265,21 @@ switch(what)
             for idx_c = 1:length(cues)
                 row_idxs = ismember(D.cue,cues(idx_c)) & ismember(D.sequence,sequences(idx_s));
 
-                events.BN = [events.BN; D.BN(row_idxs)];
-                events.TN = [events.TN; D.TN(row_idxs)];
-                events.onset = [events.onset; 0.001*(D.onset(row_idxs)+onset_shift)];
-                events.duration = [events.duration; 0.001*repmat(100, [sum(row_idxs), 1])];
-                events.seq = [events.seq; D.sequence(row_idxs)];
-                events.cue = [events.cue; D.cue(row_idxs)];
-                events.eventname = [events.eventname; repmat(sprintf("(%d,%s)",sequences(idx_s),cues(idx_c)), [sum(row_idxs), 1])];
+                events2.BN = [events2.BN; D.BN(row_idxs)];
+                events2.TN = [events2.TN; D.TN(row_idxs)];
+                events2.onset = [events2.onset; D.onset(row_idxs)+onset_shift];
+                events2.duration = [events2.duration; repmat(1000, [sum(row_idxs), 1])];
+                events2.seq = [events2.seq; D.sequence(row_idxs)];
+                events2.cue = [events2.cue; D.cue(row_idxs)];
+                events2.eventname = [events2.eventname; repmat(sprintf("p(%d,%s)",sequences(idx_s),cues(idx_c)), [sum(row_idxs), 1])];
             end
         end
         
-        events = struct2table(events);
-        events.onset = events.onset .* 0.001;
-        events.duration = events.duration .* 0.001;
+        events2 = struct2table(events2);
+        events2.onset = events2.onset .* 0.001;
+        events2.duration = events2.duration .* 0.001;
 
-        varargout{1} = events;
+        varargout{1} = [events1; events2];
 
     case 'GLM:design'
         %% dependency:
@@ -582,7 +582,7 @@ switch(what)
             %% (1,L), (1,S), (2,L), (2,S), (3,L), (3,S), (4,L), (4,S)
             contrasts = {'Letter','Spatial','Letter-Spatial'};
             xcons = [1 0 1 0 1 0 1 0 ; 0 1 0 1 0 1 0 1 ; 1 -1 1 -1 1 -1 1 -1];
-        case {2,3}
+        case {2,"2-ii"}
             %% B_L, B_S, C_L, C_S, N_L, N_S, Rest, S_L, S_S
             contrasts = {
                 'Letter','Spatial','Letter-Spatial', ...
@@ -593,6 +593,14 @@ switch(what)
                 1 0 1 0 1 0 0 1 0 ; 0 1 0 1 0 1 0 0 1 ; 1 -1 1 -1 1 -1 0 1 -1 ;
                 1 0 -1 0 0 0 0 0 0 ; 0 1 0 -1 0 0 0 0 0 ; 1 -1 -1 1 0 0 0 0 0 ;
                 0 0 0 0 -1 0 0 1 0 ; 0 0 0 0 0 -1 0 0 1 ; 0 0 0 0 -1 1 0 1 -1 ;
+            ];
+        case 3
+            %% (1,L), (1,S), (2,L), (2,S), (3,L), (3,S), (4,L), (4,S)
+            contrasts = {'Letter','Spatial','Letter-Spatial'};
+            xcons = [
+                1 0 1 0 1 0 1 0 0 0 0 0 0 0 0 0; 
+                0 1 0 1 0 1 0 1 0 0 0 0 0 0 0 0;
+                1 -1 1 -1 1 -1 1 -1 0 0 0 0 0 0 0 0
             ];
         end
 
