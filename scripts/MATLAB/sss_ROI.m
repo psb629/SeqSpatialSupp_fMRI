@@ -1,7 +1,7 @@
 function varargout = sss_ROI(what,varargin)
 
 if ispc
-    cd '\\wsl.localhost/ubuntu-22.04/home/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
+    cd '\\wsl.localhost/ubuntu-24.04/home/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
     dir_atlas = 'F:/Atlas/fs_LR_32';
 elseif ismac
     cd '/Users/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'

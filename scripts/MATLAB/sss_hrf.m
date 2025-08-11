@@ -1,7 +1,7 @@
 function varargout = sss_hrf(what,varargin)
 
 if ispc
-    cd '\\wsl.localhost/ubuntu-22.04/home/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
+    cd '\\wsl.localhost/ubuntu-24.04/home/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
 elseif ismac
     cd '/Users/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
 end

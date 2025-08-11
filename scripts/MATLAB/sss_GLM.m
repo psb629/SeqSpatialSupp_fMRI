@@ -1,7 +1,7 @@
 function varargout = sss_GLM(what,varargin)
 
 if ispc
-    cd '\\wsl.localhost/ubuntu-22.04/home/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
+    cd '\\wsl.localhost/ubuntu-24.04/home/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
 elseif ismac
     cd '/Users/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
 end
@@ -25,7 +25,7 @@ map = 'beta';
 %% argument inputs
 sn = [];
 glm = [];
-vararginoptions(varargin,{'sn','glm','nTRs','hrf_params','map'});
+vararginoptions(varargin,{'sn','glm','nTRs','hrf_params','map'}); % https://github.com/DiedrichsenLab/dataframe.git
 hrf_params = [hrf_params hrf_params_default(length(hrf_params)+1:end)];
 if length(hrf_params)~=length(hrf_params_default)
     error('Wrong hrf_param [%s].',num2str(hrf_params))
