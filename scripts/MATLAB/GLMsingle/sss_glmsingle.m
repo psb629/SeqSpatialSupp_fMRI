@@ -1,7 +1,7 @@
 function varargout = sss_glmsingle(what,varargin)
 
 if ispc
-    cd '\\wsl.localhost/ubuntu-22.04/home/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
+    cd '\\wsl.localhost/ubuntu-24.04/home/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
 elseif ismac
     cd '/Users/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
 end
@@ -166,13 +166,17 @@ switch(what)
         info.raw.descrip = descrip;
         niftiwrite(R2,fullfile(niftidir,'R2.nii'), info);
         
-        
+    case 'GLM:t_contrast'
+        dir_work = fullfile(dir_root, glmDir, subj_id);
         % Make t-maps:
+        mask = niftiread(fullfile(baseDir,'glm_1',subj_id,'mask.nii'));
+        % load design:
+        designinfo = load(fullfile(dir_work, 'DESIGNINFO.mat'));
         % load reginfo:
-        reginfo = dload(fullfile(outputdir, subj_id, 'reginfo.tsv'));
+        T = dload(fullfile(dir_work, 'reginfo.tsv'));
         
-        % load betas:
-        betafiles = dir(fullfile(outputdir, subj_id, 'beta*.nii'));
+        %% load betas:
+        betafiles = dir(fullfile(dir_work, 'beta*.nii'));
         beta = {};
         info = {};
         for i = 1:length(betafiles)
@@ -181,26 +185,47 @@ switch(what)
             info{i,1} = niftiinfo(fullfile(betafiles(i).folder, betafiles(i).name));
         end
         
-        % estimate t-maps:
-        conditions = unique(reginfo.name);
-        for i = 1:length(conditions)
-            c = conditions{i};
-            idx = find(strcmp(reginfo.name,c));
-            select_betas = beta(idx);
-            cat4d = cat(4, select_betas{:});
-            tstats = nanmean(cat4d,4) ./ (std(cat4d,[],4)./sqrt(length(idx)));
-            tstats(isnan(tstats)) = 0;
-            % save tstats:
-            infotmp = info{1};
-            infotmp.Filename = [];
-            infotmp.Filemoddate = [];
-            infotmp.Filesize = [];
-            descrip = sprintf('t-stats:%s',conditions{i});
-            infotmp.Description = descrip;
-            infotmp.raw.descrip = descrip;
-            niftiwrite(tstats,fullfile(niftidir,sprintf('tmap_%s.nii',replace(conditions{i},":", "-"))), infotmp);
+        %% estimate t-maps:
+        conditions = unique(T.name);
+        xCon = {};
+        for c = 1:length(conditions)
+            cond = conditions{c};
+            
+            % contrast
+            xcon = zeros(size(designinfo.stimorder,2),1);
+            xcon(strcmp(T.name, cond)) = 1;
+            xcon = xcon / sum(xcon);
+            
+            % design matrix Xs
+            Xs=0; for i=1:length(designinfo.designSINGLE); Xs=Xs+designinfo.designSINGLE{i}; end;
+            
+            if isempty(xCon) % empty
+                xCon = spm_FcUtil('Set', cond, 'T', 'c', xcon, Xs);
+            elseif sum(strcmp(cond, {xCon.name})) > 0 % replace
+                idx = find(strcmp(cond, {xCon.name}));
+                xCon(idx) = spm_FcUtil('Set', cond, 'T', 'c', xcon, Xs);
+            else % new
+                xCon(end+1) = spm_FcUtil('Set', cond, 'T', 'c', xcon, Xs);
+            end
+            % idx = find(strcmp(T.name,cond));
+            % select_betas = beta(idx);
+            % cat4d = cat(4, select_betas{:});
+            % tstats = nanmean(cat4d,4) ./ (std(cat4d,[],4)./sqrt(length(idx)));
+            % tstats(isnan(tstats)) = 0;
+            % % save tstats:
+            % infotmp = info{1};
+            % infotmp.Filename = [];
+            % infotmp.Filemoddate = [];
+            % infotmp.Filesize = [];
+            % descrip = sprintf('t-stats:%s',conditions{i});
+            % infotmp.Description = descrip;
+            % infotmp.raw.descrip = descrip;
+            % niftiwrite(tstats,fullfile(niftidir,sprintf('tmap_%s.nii',replace(conditions{i},":", "-"))), infotmp);
         end
-        %% Define tmaps
+        % save(fullfile(dir_work, 'xCon.mat'), 'xCon', '-v7.3');
+        
+        %% run contrasts
+        SPM = spm_contrasts(SPM, 1:length(xCon));
     
     case 'WB:vol2surf'
         dir_work = fullfile(dir_root,glmDir,wbDir,subj_id);

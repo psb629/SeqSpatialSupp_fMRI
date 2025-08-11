@@ -193,6 +193,17 @@ def get_df_window_y(subj, glm, roi, param, pre=10, post=20, gap=0, TR=1):
 
 	return df_window_y
 
+def load_mask(subj, glm):
+	"""
+	Return
+		mask image: nifti
+	"""
+	dir_glm = ut.get_dir_glm(glm)
+	mask = join(dir_glm,subj,'mask.nii')
+	img = nb.load(mask)
+
+	return img, img.affine, img.header
+
 def get_WPM(subj, glm):
 	"""
 	Return

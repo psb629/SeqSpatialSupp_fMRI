@@ -10,6 +10,17 @@ import h5py
 
 from SSS import util as ut
 
+def fname_SPM(subj, glm):
+	"""
+	Output
+		fname: string
+			To get the file name of SPM.mat
+	"""
+	dir_glm = ut.get_dir_glm(glm=glm)
+	fname = join(dir_glm,subj,'SPM.mat')
+	
+	return fname
+
 def load_SPM(SPM):
 	"""
 	Output
