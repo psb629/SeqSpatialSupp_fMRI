@@ -30,6 +30,20 @@ def get_border(path_surfAnalysisPY, hemi='L'):
 
 	return path_border
 
+def load_mask(subj, glm=1, as_nii=True):
+	"""
+	Return
+		mask image: nifti
+	"""
+	dir_glm = ut.get_dir_glm(glm)
+	mask = join(dir_glm,subj,'mask.nii')
+	img = nb.load(mask)
+
+	if as_nii:
+		return img
+	else:
+		return img.get_fdata(), img.affine, img.header
+
 def load_summed_roi(subj, list_roi):
 	"""
 	Return
@@ -52,19 +66,67 @@ def load_summed_roi(subj, list_roi):
 
 	return img_roi
 
-def load_yraw(subj,roi,hemi='L'):
+def load_yraw(subj, run=None, roi=None, hemi='L'):
 	"""
 	Return
 		y: cifti data with (# total TRs) X (# voxels) shape
 	"""
-	dir_roi = ut.get_dir_roi()
-	dir_work = join(dir_roi,subj)
-
-	hemi_ = hemi.upper()
-
-	fname = join(dir_work,'cifti.%s.%s.%s.y_raw.dtseries.nii'%(hemi_,subj,roi))
+	if roi is None:
+		assert run is not None, 'The input, RUN, is necessary.'
+		dir_raw = join(ut.get_dir_root(),'imaging_data')
+		## load the y_raw
+		fname = join(dir_raw,subj,'%s_run_%02d.nii'%(subj,run))
+	else:
+		assert run is None, 'The input, RUN, is not necessary.'
+		dir_roi = ut.get_dir_roi()
+		hemi_ = hemi.upper()
+		fname = join(dir_roi,subj,'cifti.%s.%s.%s.y_raw.dtseries.nii'%(hemi_,subj,roi))
 
 	return nb.load(fname)
+
+def trim_ydata(ydata, glm, subj='S01', as_nii=True):
+	"""
+	Return
+		ydata: nifti 
+			time series, Volumn X (# TRs)
+		glm: int
+	"""
+	X = deal_spm.get_SPM_X(SPM=deal_spm.fname_SPM(subj=subj, glm=glm))
+	T,P = X.shape
+
+	affine = ydata.affine
+	header = ydata.header
+	ydata = ydata.get_fdata()
+
+	ydata = ydata[..., -T:]
+	
+	if as_nii:
+		return nb.Nifti1Image(ydata, affine=affine, header=header)
+	else:
+		return ydata, affine, header
+
+def masking_data(data, mask):
+	"""
+	Return
+		data: nifti 
+			Volumn X K
+		mask: nifti
+			Volumn
+	"""
+	affine = mask.affine
+	header = mask.header
+	assert (data.affine == affine).all(), "The data and mask are not matched"
+	assert data.shape[:3] == mask.shape, "The data and mask are not matched"
+
+	data = data.get_fdata()
+	mask = mask.get_fdata()
+	#mask[mask==0] = np.nan
+
+	res = np.ones(data.shape) * np.nan
+	for t in np.arange(data.shape[-1]):
+		res[...,t] = data[...,t] * mask
+
+	return nb.Nifti1Image(res, affine=affine, header=header)
 
 def load_hrf_tune(subj, glm, roi, param=[6,16], hemi='L', map='beta'):
 	"""
@@ -192,17 +254,6 @@ def get_df_window_y(subj, glm, roi, param, pre=10, post=20, gap=0, TR=1):
 	df_window_y = pd.DataFrame(lines)
 
 	return df_window_y
-
-def load_mask(subj, glm):
-	"""
-	Return
-		mask image: nifti
-	"""
-	dir_glm = ut.get_dir_glm(glm)
-	mask = join(dir_glm,subj,'mask.nii')
-	img = nb.load(mask)
-
-	return img, img.affine, img.header
 
 def get_WPM(subj, glm):
 	"""

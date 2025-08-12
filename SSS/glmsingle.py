@@ -55,23 +55,6 @@ def load_map_order(subj, glm, map):
 
 	return order
 
-def get_y_raw(subj, glm, run=1, trim=True, as_nii=False):
-	Xs = get_designSINGLE(subj, glm, run)
-	T, P = Xs.shape
-
-	dir_raw = join(su.get_dir_root(),'imaging_data')
-	img = nb.load(join(dir_raw,subj,'%s_run_%02d.nii'%(subj,run)))
-	y_raw = img.get_fdata()
-	
-	if trim:
-		y_raw = y_raw[..., -T:]
-
-	if as_nii:
-		y_raw = nb.Nifti1Image(y_raw, affine=img.affine, header=img.header)
-		return y_raw
-	else:
-		return y_raw, img.affine, img.header
-
 def calc_y_hat(subj, glm):
 	list_run = su.get_list_run()
 	dir_work = join(get_dir_glmsingle(glm),subj)
