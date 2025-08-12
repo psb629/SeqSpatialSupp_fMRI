@@ -5,8 +5,9 @@ import numpy as np
 import pandas as pd
 import h5py
 
-from SSS import util as ut
+from SSS import util as su
 from SSS import deal_spm
+from SSS import image as simage
 
 from nilearn import image
 import nibabel as nb
@@ -16,7 +17,7 @@ import surfAnalysisPy as surf
 # import Functional_Fusion.reliability as rel
 
 def get_dir_glmsingle(glm=None):
-	dir_work = join(ut.get_dir_root(),'GLMsingle')
+	dir_work = join(su.get_dir_root(),'GLMsingle')
 	if glm is not None:
 		dir_work = join(dir_work,'glm_%d'%glm)
 
@@ -58,7 +59,7 @@ def get_y_raw(subj, glm, run=1, trim=True, as_nii=False):
 	Xs = get_designSINGLE(subj, glm, run)
 	T, P = Xs.shape
 
-	dir_raw = join(ut.get_dir_root(),'imaging_data')
+	dir_raw = join(su.get_dir_root(),'imaging_data')
 	img = nb.load(join(dir_raw,subj,'%s_run_%02d.nii'%(subj,run)))
 	y_raw = img.get_fdata()
 	
@@ -71,6 +72,44 @@ def get_y_raw(subj, glm, run=1, trim=True, as_nii=False):
 	else:
 		return y_raw, img.affine, img.header
 
-def calc_y_hat(subj, glm, run=1):
+def calc_y_hat(subj, glm):
+	list_run = su.get_list_run()
+	dir_work = join(get_dir_glmsingle(glm),subj)
 
-	return 1
+	Xs = get_designSINGLE(subj=subj, glm=glm, run=1)  # (T,P)
+	T, P = Xs.shape
+	del Xs
+
+	## load mask
+	mask, affine, header = simage.load_mask(subj, glm)
+	spatial_shape = mask.shape
+	V = np.prod(spatial_shape)
+	mask = mask.get_fdata()
+
+	## load betas (V_3d, P)
+	betas = np.ones((*spatial_shape, P)) * np.nan
+	for ii, fname in enumerate(sorted(glob(join(dir_work,'beta_*.nii')))):
+		beta = nb.load(fname).get_fdata()
+		## masking
+		betas[...,ii] = beta * mask
+
+	## check the validation
+	assert betas.shape[-1] == P, f'P mismatch: X has {P} cols, beta has {betas.shape[-1]} regressors'
+
+	## Flattened in 2D for vectorized operations
+	B_2d = betas.reshape(*spatial_shape,P).reshape(V,P)  # (V,P)
+	del betas
+
+	for rr, run in enumerate(list_run):
+		## get y_hat
+		Xs = get_designSINGLE(subj=subj, glm=glm, run=rr+1)
+		Y_hat = Xs @ B_2d.T  # (T,V) = (T,P) * (P,V)
+
+		## reshape
+		yhat_4d = Y_hat.T.reshape(*spatial_shape,T)  # (V_3d,T)
+
+		## save the y_hat
+		img = nb.Nifti1Image(yhat_4d, affine=affine, header=header)
+		output = join(dir_work,'%s.Yhat.%s.nii'%(subj,run))
+		nb.save(img, output)
+
