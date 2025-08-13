@@ -123,8 +123,11 @@ def masking_data(data, mask):
 	#mask[mask==0] = np.nan
 
 	res = np.ones(data.shape) * np.nan
-	for t in np.arange(data.shape[-1]):
-		res[...,t] = data[...,t] * mask
+	if len(data.shape)>3:
+		for t in np.arange(data.shape[-1]):
+			res[...,t] = data[...,t] * mask
+	else:
+		res = data * mask
 
 	return nb.Nifti1Image(res, affine=affine, header=header)
 
