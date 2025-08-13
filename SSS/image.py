@@ -288,13 +288,13 @@ def calc_sigma(subj, glm, roi, hemi, param):
 	
 	return sigma
 
-def get_prewhitened_beta(subj, glm, region='whole', param=[5,15], hemi='L'):
+def get_prewhitened_beta(subj, glm, region='2D', param=[5,15], hemi='L'):
 	"""
 	Return
 		beta_whiten : 1-D or 2-D numpy array
 			cifti data with (# runs * # interests) X (# voxels) for map='beta'
 	"""
-	if region=='whole':
+	if region=='2D':
 		dir_surf = ut.get_dir_surf()
 		betas = nb.load(join(dir_surf,'glm_%d/%s.%s.glm_%d.beta.func.gii'%(glm,subj,hemi,glm))).darrays
 		res = nb.load(join(dir_surf,'glm_%d/%s.%s.glm_%d.ResMS.func.gii'%(glm,subj,hemi,glm))).darrays[0].data
