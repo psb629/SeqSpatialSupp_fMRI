@@ -41,6 +41,30 @@ def load_designinfo(subj, glm):
 
 	return designinfo
 
+def load_model(subj, glm, type=0):
+	dir_glm = get_dir_glmsingle(glm)
+	dir_work = join(dir_glm, subj)
+	if (type == 0)|(type ==-4)|(type == 'a')|(type == 'A'):
+		model = 'TYPEA_ONOFF.mat'
+	elif (type == 1)|(type ==-3)|(type == 'b')|(type == 'B'):
+		model = 'TYPEB_FITHRF.mat'
+	elif (type == 2)|(type ==-2)|(type == 'c')|(type == 'C'):
+		model = 'TYPEC_FITHRF_GLMDENOISE.mat'
+	elif (type == 3)|(type ==-1)|(type == 'd')|(type == 'D'):
+		model = 'TYPED_FITHRF_GLMDENOISE_RR.mat'
+
+	info = h5py.File(join(dir_work,model))
+
+	return info
+
+def load_FIR(subj, glm):
+	dir_glm = get_dir_glmsingle(glm)
+	dir_work = join(dir_glm, subj)
+	
+	info = h5py.File(join(dir_work,'RUNWISEFIR.mat'))
+	
+	return info
+
 def get_designSINGLE(subj, glm, run=1):
 	info = load_designinfo(subj, glm)
 	ref = info['designSINGLE'][run-1,0]
