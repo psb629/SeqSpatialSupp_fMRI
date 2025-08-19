@@ -72,12 +72,51 @@ def get_designSINGLE(subj, glm, run=1):
 
 	return Xs.T
 
+def get_TR_stimdur_stimorder(subj, glm, run=1):
+	designinfo = load_designinfo(subj, glm)
+	tr = designinfo['tr'][:][0,0]
+	stimdur = designinfo['stimdur'][:][0,0]
+	stimorder = designinfo['stimorder'][:].reshape(-1).astype(int)
+
+	return tr, stimdur, stimorder
+
 def load_map_order(subj, glm, map):
 	dir_surf = join(get_dir_glmsingle(glm),'surfaceWB')
 	fname = join(dir_surf,subj,'%s.%s_orders.csv'%(subj,map))
 	order = np.loadtxt(fname, delimiter='\t',dtype=str)
 
 	return order
+
+def get_index_map(subj, glm, type='D', run=None):
+	mask = simage.load_mask(subj)
+
+	model = load_model(subj, glm, type=type)
+	HRFindex = model['HRFindex'][:].transpose(2,1,0)
+
+	hrfnii = nb.Nifti1Image(HRFindex, affine=mask.affine, header=mask.header)
+	hrfnii = simage.masking_data(data=hrfnii, mask=mask)
+
+	return hrfnii
+	
+def get_R2_map(subj, glm, type='D', run=None):
+	mask = simage.load_mask(subj)
+
+	model = load_model(subj, glm, type=type)
+	R2 = model['R2'][:].transpose(2,1,0)
+
+	r2nii = nb.Nifti1Image(R2, affine=mask.affine, header=mask.header)
+	r2nii = simage.masking_data(data=r2nii, mask=mask)
+
+	return r2nii
+
+def get_beta_map(subj, glm, type='D', run=None):
+	mask = simage.load_mask(subj)
+
+	model = load_model(subj, glm, type=type)
+	betas = model['modelmd'][:].transpose(3,2,1,0)
+	betanii = nb.Nifti1Image(betas, affine=mask.affine, header=mask.header)
+
+	return betanii
 
 def calc_y_hat(subj, glm):
 	list_run = su.get_list_run()

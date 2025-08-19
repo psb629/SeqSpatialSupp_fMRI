@@ -11,7 +11,7 @@ sss_init;
 GLMsingle_dir = fullfile(dir_git,'GLMsingle');
 
 addpath(fullfile(GLMsingle_dir,'matlab'));
-addpath(fullfile(GLMsingle_dir,'matlab', 'utilities'));
+% addpath(fullfile(GLMsingle_dir,'matlab', 'utilities'));
 
 % if the submodules were installed we try to add their code to the path
 addpath(fullfile(GLMsingle_dir, 'matlab', 'fracridge', 'matlab'));
@@ -46,14 +46,14 @@ end
 glmDir = sprintf('glm_%d',glm);
 SPM_folder  = fullfile(baseDir,glmDir,subj_id);
 
-dir_root = fullfile(baseDir,'GLMsingle');
+dir_glmsingle = fullfile(baseDir,'GLMsingle');
 
 switch(what)
     case 'GLM:estimate'
         % Name of directory to which outputs will be saved
-        outputdir = fullfile(dir_root,glmDir);
+        outputdir = fullfile(dir_glmsingle, glmDir);
         
-        %
+        % load SPM file
         SPM = load(fullfile(SPM_folder,'SPM.mat'));
         SPM = SPM.SPM;
         TR = SPM.xY.RT;
@@ -165,9 +165,110 @@ switch(what)
         info.Description = descrip;
         info.raw.descrip = descrip;
         niftiwrite(R2,fullfile(niftidir,'R2.nii'), info);
+
+    case 'ROI:make_cifti_.y_series'
+        %% load SPM file
+        SPM = load(fullfile(SPM_folder,'SPM.mat'));
+        SPM = SPM.SPM;
         
+        %% load reginfo
+        reginfo = dload(fullfile(dir_glmsingle, glmDir, subj_id, 'reginfo.tsv'));
+
+        %% load glmsingle model
+        typeA = load(fullfile(dir_glmsingle,glmDir,subj_id,'TYPEA_ONOFF.mat'));
+        typeD = load(fullfile(dir_glmsingle,glmDir,subj_id,'TYPED_FITHRF_GLMDENOISE_RR.mat'));
+        designinfo = load(fullfile(dir_glmsingle,glmDir,subj_id,'DESIGNINFO.mat'));
+        designSINGLE = designinfo.designSINGLE;
+        stimdur = designinfo.stimdur;
+        tr = designinfo.tr;
+
+        %% load mask
+        mask = niftiread(fullfile(dir_glmsingle, glmDir, subj_id, 'mask.nii'));
+        
+        %% 피험자의 surface 공간에서 각 ROI의 node (2-D) 정보 
+        fname = fullfile(baseDir,roiDir,subj_id,sprintf('%s.Task_regions.mat',subj_id));
+        R = load(fname); R = R.R;
+
+        %% get region voxels, "assuming all images have the SAME AFFINE":
+        X=[];Y=[];Z=[];
+        for r=1:length(R)
+            if (~isempty(R{r}))
+                % idx coord' = Affine' * real coord
+                [x,y,z]=spmj_affine_transform(R{r}.data(:,1),R{r}.data(:,2),R{r}.data(:,3),inv(SPM.xY.VY(1).mat));
+                X=[X;x];Y=[Y;y];Z=[Z;z];
+                from(r)=size(X,1)+1;
+                to(r)=size(X,1);
+            else 
+                from(r)=size(X,1)+1;
+                to(r)=size(X,1);
+            end
+        end
+        % length(to) = the # of ROIs
+        % length(X) = the total summation of # of voxels in all ROIs
+
+        %% load y_raw
+        SPM = rename_source(SPM);
+        data = cell(1,length(SPM.Sess));
+        fname = unique(struct2table(SPM.xY.VY).fname);
+        for zz=1:length(fname)
+            tmp = niftiread(fname{zz});
+            mask4d = repmat(mask, [1,1,1,size(tmp,4)]);
+            tmp = tmp .* int16(mask4d);
+            data{zz} = tmp;
+        end
+
+        %% make y_adj
+        y_adj = zeros(length(X), 7400);
+        for ii=1:length(designSINGLE)
+            data_run = data{ii};
+            nTR = SPM.nscan(ii);
+        
+            % --- A. Get the GLMdenoise Principal Components for this run ---
+            % 'pcregressors' is a cell array, one cell per run
+            noise_pcs = typeD.pcregressors{ii}; 
+            
+            % The number of PCs used in the final model is stored in 'pcnum'
+            num_pcs_to_use = typeD.pcnum;
+            
+            % Keep only the PCs that were actually used in the model
+            if num_pcs_to_use > 0
+                selected_pcs = noise_pcs(:, 1:num_pcs_to_use);
+            else
+                selected_pcs = []; % No PCs were selected
+            end
+            
+            % --- B. Generate the Polynomial Regressors ---
+            num_timepoints = nTR;
+            run_duration_min = (num_timepoints * tr) / 60;
+            poly_degree = round(run_duration_min / 2);
+            
+            % Create the polynomial regressors (including the constant term)
+            polynomial_regressors = zeros(num_timepoints, poly_degree + 1);
+            for p = 0:poly_degree
+                polynomial_regressors(:, p+1) = (linspace(-1, 1, num_timepoints)').^p;
+            end
+            
+            % --- C. Combine into a single nuisance regressor matrix ---
+            % Also add any 'extraregressors' you might have used
+            extra_regs = []; % Populate this if you used opt.extraregressors
+            nuisance_regressors = [selected_pcs, polynomial_regressors, extra_regs];
+            
+            volume_size = [size(data_run, 1), size(data_run, 2), size(data_run, 3)];
+            linear_indices = sub2ind(volume_size, round(X), round(Y), round(Z));
+            
+            num_voxels_total = size(data_run, 1) * size(data_run, 2) * size(data_run, 3); % 90*90*32 = 259200
+            data_reshaped = reshape(data_run, num_voxels_total, size(data_run, 4));
+            
+            selected_data = double(data_reshaped(linear_indices, :)); % voxels x time data
+            
+            betas_nuisance = nuisance_regressors \ selected_data'; 
+            y_noise = nuisance_regressors * betas_nuisance;
+            % y_adj = [y_adj (selected_data' - y_noise)'];
+            y_adj(:,(ii-1)*740+1:ii*740) = (selected_data' - y_noise)';
+        end
+
     case 'GLM:t_contrast'
-        dir_work = fullfile(dir_root, glmDir, subj_id);
+        dir_work = fullfile(dir_glmsingle, glmDir, subj_id);
         % Make t-maps:
         mask = niftiread(fullfile(baseDir,'glm_1',subj_id,'mask.nii'));
         % load design:
@@ -228,11 +329,11 @@ switch(what)
         SPM = spm_contrasts(SPM, 1:length(xCon));
     
     case 'WB:vol2surf'
-        dir_work = fullfile(dir_root,glmDir,wbDir,subj_id);
+        dir_work = fullfile(dir_glmsingle,glmDir,wbDir,subj_id);
         if (~exist(dir_work,'dir'))
             mkdir(dir_work);
         end
-        dir_glm = fullfile(dir_root,glmDir,subj_id);
+        dir_glm = fullfile(dir_glmsingle,glmDir,subj_id);
 
         V = {};
         cols = {};
