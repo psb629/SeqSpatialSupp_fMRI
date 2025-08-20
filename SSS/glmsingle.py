@@ -41,30 +41,6 @@ def load_designinfo(subj, glm):
 
 	return designinfo
 
-def load_model(subj, glm, type=0):
-	dir_glm = get_dir_glmsingle(glm)
-	dir_work = join(dir_glm, subj)
-	if (type == 0)|(type ==-4)|(type == 'a')|(type == 'A'):
-		model = 'TYPEA_ONOFF.mat'
-	elif (type == 1)|(type ==-3)|(type == 'b')|(type == 'B'):
-		model = 'TYPEB_FITHRF.mat'
-	elif (type == 2)|(type ==-2)|(type == 'c')|(type == 'C'):
-		model = 'TYPEC_FITHRF_GLMDENOISE.mat'
-	elif (type == 3)|(type ==-1)|(type == 'd')|(type == 'D'):
-		model = 'TYPED_FITHRF_GLMDENOISE_RR.mat'
-
-	info = h5py.File(join(dir_work,model))
-
-	return info
-
-def load_FIR(subj, glm):
-	dir_glm = get_dir_glmsingle(glm)
-	dir_work = join(dir_glm, subj)
-	
-	info = h5py.File(join(dir_work,'RUNWISEFIR.mat'))
-	
-	return info
-
 def get_designSINGLE(subj, glm, run=1):
 	info = load_designinfo(subj, glm)
 	ref = info['designSINGLE'][run-1,0]
@@ -80,6 +56,14 @@ def get_TR_stimdur_stimorder(subj, glm, run=1):
 
 	return tr, stimdur, stimorder
 
+def load_FIR(subj, glm):
+	dir_glm = get_dir_glmsingle(glm)
+	dir_work = join(dir_glm, subj)
+	
+	info = h5py.File(join(dir_work,'RUNWISEFIR.mat'))
+	
+	return info
+
 def load_map_order(subj, glm, map):
 	dir_surf = join(get_dir_glmsingle(glm),'surfaceWB')
 	fname = join(dir_surf,subj,'%s.%s_orders.csv'%(subj,map))
@@ -87,11 +71,41 @@ def load_map_order(subj, glm, map):
 
 	return order
 
+def load_model(subj, glm, type='D'):
+	dir_glm = get_dir_glmsingle(glm)
+	dir_work = join(dir_glm, subj)
+	if (type == 0)|(type ==-4)|(type == 'a')|(type == 'A'):
+		model = 'TYPEA_ONOFF.mat'
+	elif (type == 1)|(type ==-3)|(type == 'b')|(type == 'B'):
+		model = 'TYPEB_FITHRF.mat'
+	elif (type == 2)|(type ==-2)|(type == 'c')|(type == 'C'):
+		model = 'TYPEC_FITHRF_GLMDENOISE.mat'
+	elif (type == 3)|(type ==-1)|(type == 'd')|(type == 'D'):
+		model = 'TYPED_FITHRF_GLMDENOISE_RR.mat'
+
+	info = h5py.File(join(dir_work,model))
+
+	return info
+
+def get_meanvol(subj, glm, type='D'):
+	mask = simage.load_mask(subj)
+
+	model = load_model(subj, glm, type=type)
+	meanvol = model['meanvol'][:].transpose(2,1,0)
+
+	meanvolnii = nb.Nifti1Image(meanvol, affine=mask.affine, header=mask.header)
+	meanvolnii = simage.masking_data(data=meanvolnii, mask=mask)
+
+	return meanvolnii
+
 def get_index_map(subj, glm, type='D', run=None):
 	mask = simage.load_mask(subj)
 
 	model = load_model(subj, glm, type=type)
-	HRFindex = model['HRFindex'][:].transpose(2,1,0)
+	if run == None:
+		HRFindex = model['HRFindex'][:].transpose(2,1,0)
+	else:
+		HRFindex = model['HRFindexrun'][:][run-1].transpose(2,1,0)
 
 	hrfnii = nb.Nifti1Image(HRFindex, affine=mask.affine, header=mask.header)
 	hrfnii = simage.masking_data(data=hrfnii, mask=mask)
@@ -102,7 +116,10 @@ def get_R2_map(subj, glm, type='D', run=None):
 	mask = simage.load_mask(subj)
 
 	model = load_model(subj, glm, type=type)
-	R2 = model['R2'][:].transpose(2,1,0)
+	if run == None:
+		R2 = model['R2'][:].transpose(2,1,0)
+	else:
+		R2 = model['R2'][:][run-1].transpose(2,1,0)
 
 	r2nii = nb.Nifti1Image(R2, affine=mask.affine, header=mask.header)
 	r2nii = simage.masking_data(data=r2nii, mask=mask)
