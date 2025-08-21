@@ -329,6 +329,8 @@ switch(what)
         SPM = spm_contrasts(SPM, 1:length(xCon));
     
     case 'WB:vol2surf'
+        % https://github.com/DiedrichsenLab/surfAnalysis.git
+        % https://github.com/nno/surfing.git
         dir_work = fullfile(dir_glmsingle,glmDir,wbDir,subj_id);
         if (~exist(dir_work,'dir'))
             mkdir(dir_work);
@@ -339,9 +341,7 @@ switch(what)
         cols = {};
         switch map
             case 'beta' % beta maps (univariate GLM)
-                load(fullfile(dir_glm,'SPM.mat'));
                 fnames = dir(fullfile(dir_glm,'beta_*.nii'));
-                fnames = fnames(SPM.xX.iC);
                 for f = 1:length(fnames)
                     V{f} = fullfile(fnames(f).folder, fnames(f).name);
                     cols{f} = fnames(f).name;
