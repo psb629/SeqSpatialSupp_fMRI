@@ -57,23 +57,23 @@ switch(what)
         SPM = load(fullfile(SPM_folder,'SPM.mat'));
         SPM = SPM.SPM;
         TR = SPM.xY.RT;
-        
+
         mask = niftiread(fullfile(baseDir,'glm_1',subj_id,'mask.nii'));
-        
+
         % load design matrix
         design = cell(1,length(SPM.Sess));
         for zz=1:length(SPM.Sess)  % for each run
-    
+
           ncond = length(SPM.Sess(zz).U);    % number of conditions
           nvol = length(SPM.Sess(zz).row);   % number of volumes
-    
+
           design{zz} = zeros(nvol,ncond);
-    
+
           for yy=1:length(SPM.Sess(zz).U)    % for each condition
             design{zz}(round(SPM.Sess(zz).U(yy).ons/TR)+1,yy) = 1;  % set all of the onsets
           end
         end
-    
+
         % load fMRI data
         data = cell(1,length(SPM.Sess));
         fname = unique(struct2table(SPM.xY.VY).fname);
@@ -83,11 +83,11 @@ switch(what)
             tmp = tmp .* cast(mask4d, 'like', tmp);
             data{zz} = tmp;
         end
-    
+
         % 
         opt = struct('wantmemoryoutputs',[0 0 0 1]);
         [results] = GLMestimatesingletrial(design,data,stimdur,TR,fullfile(outputdir,subj_id),opt);
-        
+
         % =========== Ali's stuff after glm single fit
         % copy subject glm mask to glmsingle direcotry:
         copyfile(fullfile(baseDir,'glm_1',subj_id,'mask.nii'),fullfile(outputdir,subj_id,'mask.nii'));
@@ -105,12 +105,12 @@ switch(what)
         for b = blocks
             % sorting:
             rows = D.block==b;
-        
+
             ons = D.ons(rows);
             event = D.event(rows);
             eventname = D.eventname(rows);
             num = D.num(rows);
-            
+
             % sorting based on onset:
             [~, ix] = sort(ons);
             ons = ons(ix);
@@ -118,7 +118,7 @@ switch(what)
             eventname = eventname(ix);
             num = num(ix);
             iti = diff(ons);
-        
+
             % adding to dataframe:
             D.ons(rows) = ons;
             D.event(rows) = event;
@@ -128,7 +128,7 @@ switch(what)
             D.iti(idx(2:end),1) = iti;
         end
         
-        info_base = niftiinfo(fullfile(baseDir,'glm_1',subj_id,'beta_0001.nii'));
+        info_base = niftiinfo(fullfile(baseDir, glmDir, subj_id, 'beta_0001.nii'));
         sz = size(m.modelmd);
         
         niftidir = fullfile(outputdir, subj_id);
@@ -142,11 +142,11 @@ switch(what)
             info.Description = descrip;
             info.raw.descrip = descrip;
             nii = m.modelmd(:,:,:,i);
-        
+
             % save nifti:
             niftiwrite(nii,fullfile(niftidir, sprintf('beta_%.4d.nii',i)), info);
         end
-        
+
         % make reginfo.tsv:
         reginfo = {};
         reginfo.sn = sn * ones(size(D.block));
@@ -154,8 +154,8 @@ switch(what)
         reginfo.name = D.eventname;
         reginfo.ons = D.ons;
         dsave(fullfile(outputdir, subj_id, 'reginfo.tsv'),reginfo);
-        
-        % save R2:
+
+        save R2:
         R2 = m.R2;
         info = info_base;
         info.Filename = [];
@@ -164,9 +164,21 @@ switch(what)
         descrip = 'glmsingle:R2 percent';
         info.Description = descrip;
         info.raw.descrip = descrip;
-        niftiwrite(R2,fullfile(niftidir,'R2.nii'), info);
+        niftiwrite(R2, fullfile(niftidir,'R2.nii'), info);
 
-    case 'ROI:make_cifti_.y_series'
+        % save HRF:
+        HRFindex = m.HRFindex;
+        info = info_base;
+        info.Filename = [];
+        info.Filemoddate = [];
+        info.Filesize = [];
+        info.Datatype = 'double';
+        descrip = 'glmsingle:HRF index';
+        info.Description = descrip;
+        info.raw.descrip = descrip;
+        niftiwrite(HRFindex, fullfile(niftidir,'HRFindex.nii'), info);
+
+    case 'ROI:make_cifti.y_series~'
         %% load SPM file
         SPM = load(fullfile(SPM_folder,'SPM.mat'));
         SPM = SPM.SPM;
@@ -267,7 +279,7 @@ switch(what)
             y_adj(:,(ii-1)*740+1:ii*740) = (selected_data' - y_noise)';
         end
 
-    case 'GLM:t_contrast'
+    case 'GLM:t_contrast~'
         dir_work = fullfile(dir_glmsingle, glmDir, subj_id);
         % Make t-maps:
         mask = niftiread(fullfile(baseDir,'glm_1',subj_id,'mask.nii'));
@@ -367,5 +379,76 @@ switch(what)
             save(G, output);
 
             fprintf('mapped %s %s glm_%d \n', subj_id, hem{h}, glm);
+        end
+
+    case 'ROI:make_cifti'
+        % 피험자의 volume 공간으로 매핑한 ROI 마스크를 이용하여 피험자의
+        % ResMS 데이터를 voxel 단위로 얻고, 그 결과를 cifti로 저장
+
+        % 피험자의 surface 공간에서 각 ROI의 node (2-D) 정보 
+        fname = fullfile(baseDir,roiDir,S_id,sprintf('%s.Task_regions.mat',S_id));
+        % [R, V] = sss_hrf('ROI:deform','sn',sn,'glm',glm,'LR',LR);
+        R = load(fname); R = R.R;
+
+        % 피험자 EPI 의 3-D 정보
+        % VolFile = fullfile(baseDir,glmDir,subj_id,'mask.nii');
+        VolFile = R{1,1}.image;
+        V = spm_vol(VolFile);
+
+        %% load glmsingle model
+        % typeA = load(fullfile(dir_glmsingle,glmDir,subj_id,'TYPEA_ONOFF.mat'));
+        % typeD = load(fullfile(dir_glmsingle, glmDir, subj_id, 'TYPED_FITHRF_GLMDENOISE_RR.mat'));
+
+        %% data
+        fprintf('extrating %s from each ROI for subject %s...\n', map, subj_id);
+        switch map
+            case {'R2','r2'}
+                fnames = dir(fullfile(dir_glmsingle, glmDir, subj_id, 'R2.nii'));
+            case {'HRF','hrf'}
+                fnames = dir(fullfile(dir_glmsingle, glmDir, subj_id, 'HRFindex.nii'));
+            case {'BETA','beta','Beta'}
+                fnames = dir(fullfile(dir_glmsingle, glmDir, subj_id, 'beta_*.nii'));
+        end
+        
+        dir_output = fullfile(dir_glmsingle, glmDir, roiDir);
+        if ~exist(dir_output,'dir')
+            mkdir(dir_output);
+        end
+
+        for ii = 1:length(fnames)
+            folder = fnames(ii).folder;
+            name = fnames(ii).name;
+            fname = fullfile(folder, name);
+
+            % volume info
+            dataset(ii) = spm_vol(fname);
+        end
+        % R의 정보를 토대로 추출한 1D data
+        D = region_getdata(dataset, R);
+
+        % length(D) = the number of ROIs (Left/Right)
+        area = 'OTHER';
+
+        for jj = 1:length(D)
+            roi = R{jj}.name;
+            hem = R{jj}.hem;
+
+            if strcmpi(map,'beta')
+                sss = sprintf('cifti.%s.%s.%s.%s.dtseries.nii', hem, subj_id, roi, upper(map));
+                dtype = 'series';
+                TR = 5;
+            else
+                sss = sprintf('cifti.%s.%s.%s.%s.dscalar.nii', hem, subj_id, roi, upper(map));
+                dtype = 'scalars';
+                TR = 1;
+            end
+
+            fname = fullfile(dir_output,sss);
+            if ~exist(fname,'file')
+                cii = region_make_cifti(R{jj},V,'data',D{jj}','dtype',dtype,'struct',area,'TR',TR);
+            end
+            cifti_write(cii, fname);
+
+            clear cii
         end
 end
