@@ -4,7 +4,7 @@ from glob import glob
 import numpy as np
 import pandas as pd
 
-from SSS import util as ut
+from SSS import util as su
 from SSS import deal_spm
 
 from nilearn import image
@@ -35,7 +35,7 @@ def load_mask(subj, glm=1, as_nii=True):
 	Return
 		mask image: nifti
 	"""
-	dir_glm = ut.get_dir_glm(glm)
+	dir_glm = su.get_dir_glm(glm)
 	mask = join(dir_glm,subj,'mask.nii')
 	img = nb.load(mask)
 
@@ -50,8 +50,8 @@ def load_summed_roi(subj, list_roi):
 		ROI_img: 3D nifti data
 			ROI image with sequentially assigned natural number labels for each ROI.
 	"""
-	dir_roi = ut.get_dir_roi()
-	S_id = ut.get_S_id(subj)
+	dir_roi = su.get_dir_roi()
+	S_id = su.get_S_id(subj)
 	for ii, roi in enumerate(list_roi):
 		fname = join(dir_roi,S_id,'ROI.L.%s.%s.nii'%(S_id,roi))
 		img_deform = nb.load(fname)
@@ -73,37 +73,46 @@ def load_yraw(subj, run=None, roi=None, hemi='L'):
 	"""
 	if roi is None:
 		assert run is not None, 'The input, RUN, is necessary.'
-		dir_raw = join(ut.get_dir_root(),'imaging_data')
+		dir_raw = join(su.get_dir_root(),'imaging_data')
 		## load the y_raw
 		fname = join(dir_raw,subj,'%s_run_%02d.nii'%(subj,run))
 	else:
 		assert run is None, 'The input, RUN, is not necessary.'
-		dir_roi = ut.get_dir_roi()
+		dir_roi = su.get_dir_roi()
 		hemi_ = hemi.upper()
 		fname = join(dir_roi,subj,'cifti.%s.%s.%s.y_raw.dtseries.nii'%(hemi_,subj,roi))
 
 	return nb.load(fname)
 
-def trim_ydata(ydata, glm, subj='S01', as_nii=True):
+def trim_ydata(ydata, glm, subj, as_nii=True):
 	"""
 	Return
 		ydata: nifti 
-			time series, Volumn X (# TRs)
+			time series, nVolumns x # nTRs
 		glm: int
 	"""
+	## RUNs
+	list_run = su.get_list_run()
+
+	## Load the design matrix X of the 1st Run
 	X = deal_spm.get_SPM_X(SPM=deal_spm.fname_SPM(subj=subj, glm=glm))
-	T,P = X.shape
+	T,K = X.shape
 
-	affine = ydata.affine
-	header = ydata.header
-	ydata = ydata.get_fdata()
+	## Load the mask image
+	_, affine, header = load_mask(subj=subj, glm=glm, as_nii=False)
 
-	ydata = ydata[..., -T:]
+	## Get the values from ydata
+	if not (isinstance(ydata, np.memmap))|(isinstance(ydata, np.ndarray)):
+		ydata = ydata.get_fdata()
+	_,P = ydata.shape
+
+	## Trim the ydata
+	ydata = ydata.reshape(len(list_run),-1,P)[:,-T:,:].reshape(-1,P)
 	
 	if as_nii:
 		return nb.Nifti1Image(ydata, affine=affine, header=header)
 	else:
-		return ydata, affine, header
+		return ydata
 
 def masking_data(data, mask):
 	"""
@@ -139,11 +148,11 @@ def load_hrf_tune(subj, glm, roi, param=[6,16], hemi='L', map='beta'):
 		beta: cifti
 			(# runs * # interests) X (# voxels) for map='beta'
 	"""
-	dir_glm = ut.get_dir_glm(glm)
+	dir_glm = su.get_dir_glm(glm)
 	glm_ = dir_glm.split('/')[-1]
 	dir_work = join(dir_glm,subj,'hrf_tune')
 
-	param_ = ut.convert_param_to_hrf(params=param, type='str')
+	param_ = su.convert_param_to_hrf(params=param, type='str')
 
 	hemi_ = hemi.upper()
 	fname = join(dir_work,'cifti.%s.%s.%s.%s.%s.%s.*.nii'%(hemi_,glm_,param_.replace('[','?'),subj,roi,map)) 
@@ -197,7 +206,7 @@ def get_df_window_y(subj, glm, roi, param, pre=10, post=20, gap=0, TR=1):
 			len(df) = nRuns*nTrials*nTRs(=pre+post+1)*2(y_adj/y_hat)
 	"""
 	## load onset times
-	dir_glm = ut.get_dir_glm(glm)
+	dir_glm = su.get_dir_glm(glm)
 	SPM = join(dir_glm,subj,'SPM.mat')
 
 	if not gap:
@@ -263,9 +272,9 @@ def get_WPM(subj, glm):
 	Return
 		cerebral images: gifti, gifti, and nifti
 	"""
-	dir_surf = ut.get_dir_surf()
-	dir_glm = ut.get_dir_glm(glm)
-	S_id = ut.get_S_id(subj)
+	dir_surf = su.get_dir_surf()
+	dir_glm = su.get_dir_glm(glm)
+	S_id = su.get_S_id(subj)
 
 	white = join(dir_surf,S_id,'%s.L.white.32k.surf.gii'%S_id)
 	pial = join(dir_surf,S_id,'%s.L.pial.32k.surf.gii'%S_id)
@@ -295,16 +304,16 @@ def get_prewhitened_beta(subj, glm, region='2D', param=[5,15], hemi='L'):
 			cifti data with (# runs * # interests) X (# voxels) for map='beta'
 	"""
 	if region=='2D':
-		dir_surf = ut.get_dir_surf()
+		dir_surf = su.get_dir_surf()
 		betas = nb.load(join(dir_surf,'glm_%d/%s.%s.glm_%d.beta.func.gii'%(glm,subj,hemi,glm))).darrays
 		res = nb.load(join(dir_surf,'glm_%d/%s.%s.glm_%d.ResMS.func.gii'%(glm,subj,hemi,glm))).darrays[0].data
 
 	else:
-		pp = ut.convert_param_to_hrf(params=param, type='str')
+		pp = su.convert_param_to_hrf(params=param, type='str')
 		betas = load_hrf_tune(subj=subj, glm=glm, roi=region, param=param, hemi=hemi, map='beta').get_fdata()
 		## Sometimes 'res' contains NaN values—for example, in the M1 region of R11—but the reason is unknown.
 		# res = nb.load(join(
-		# 	ut.get_dir_roi(),'glm_%d'%glm,'cifti.%s.%s.%s.ResMS.dscalar.nii'%(hemi,subj,region)
+		# 	su.get_dir_roi(),'glm_%d'%glm,'cifti.%s.%s.%s.ResMS.dscalar.nii'%(hemi,subj,region)
 		# )).get_fdata().reshape(-1)
 		sigma = calc_sigma(subj=subj, glm=glm, roi=region, hemi=hemi, param=param)
 		res = np.diagonal(sigma)
@@ -347,7 +356,7 @@ def get_optimal_hrf(subj, roi, r2_score=None):
 	return param
 
 def load_contrast_order(subj, glm, map='con'):
-	dir_work = join(ut.get_dir_surf(),'glm_%d'%glm)
+	dir_work = join(su.get_dir_surf(),'glm_%d'%glm)
 
 	order = np.genfromtxt(
 		join(dir_work,'%s.%s_orders.csv'%(subj,map)),
