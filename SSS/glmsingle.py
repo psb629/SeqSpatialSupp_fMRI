@@ -41,10 +41,20 @@ def load_designinfo(subj, glm):
 
 	return designinfo
 
-def get_designSINGLE(subj, glm, run=1):
+def get_designSINGLE(subj, glm, run=None):
 	info = load_designinfo(subj, glm)
-	ref = info['designSINGLE'][run-1,0]
-	Xs = info[ref][:]
+	if run is None:
+		list_run = su.get_list_run()
+		for rr, _ in enumerate(list_run):
+			ref = info['designSINGLE'][rr,0]
+			X = info[ref][:]
+			if rr == 0:
+				Xs = X
+			else:
+				Xs = np.concatenate([Xs, X], axis=1)
+	else:
+		ref = info['designSINGLE'][run-1,0]
+		Xs = info[ref][:]
 
 	return Xs.T
 
