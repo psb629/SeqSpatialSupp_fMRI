@@ -6,6 +6,7 @@ from os import getcwd
 import numpy as np
 import pandas as pd
 import re
+import scipy
 
 def convert_pval_to_star(pvalue):
 	res = "ns"
@@ -19,6 +20,11 @@ def convert_pval_to_star(pvalue):
 		res = "*"
 	
 	return res
+
+def trans_alpha_to_tval(alpha=0.05, df=None):
+	thresh = scipy.stats.t.ppf(1-0.5*alpha, df=df)
+	
+	return thresh
 
 def get_dir_SSS():
 	dir_current = getcwd().replace('\\','/')
