@@ -21,7 +21,7 @@ def convert_pval_to_star(pvalue):
 	
 	return res
 
-def trans_alpha_to_tval(alpha=0.05, df=None):
+def convert_alpha_to_tval(alpha=0.05, df=None):
 	thresh = scipy.stats.t.ppf(1-0.5*alpha, df=df)
 	
 	return thresh
