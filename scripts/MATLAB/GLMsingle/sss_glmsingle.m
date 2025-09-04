@@ -84,20 +84,20 @@ switch(what)
             data{zz} = tmp;
         end
 
-        % 
+        % GLMsingle
         opt = struct('wantmemoryoutputs',[0 0 0 1]);
         [results] = GLMestimatesingletrial(design,data,stimdur,TR,fullfile(outputdir,subj_id),opt);
 
         % =========== Ali's stuff after glm single fit
         % copy subject glm mask to glmsingle direcotry:
         copyfile(fullfile(baseDir,'glm_1',subj_id,'mask.nii'),fullfile(outputdir,subj_id,'mask.nii'));
-        
+
         % Save betas as nifti:
         % load glmsingle model
         modelname = 'TYPED_FITHRF_GLMDENOISE_RR.mat';
         m = load(fullfile(outputdir, subj_id, modelname));
         
-        % get event onsets and sort chronological:
+        % % get event onsets and sort chronological:
         D = spmj_get_ons_struct(SPM);
         D.ons = D.ons-1;
         % sort based on onsets:
@@ -155,7 +155,7 @@ switch(what)
         reginfo.ons = D.ons;
         dsave(fullfile(outputdir, subj_id, 'reginfo.tsv'),reginfo);
 
-        save R2:
+        % save R2:
         R2 = m.R2;
         info = info_base;
         info.Filename = [];
@@ -177,6 +177,18 @@ switch(what)
         info.Description = descrip;
         info.raw.descrip = descrip;
         niftiwrite(HRFindex, fullfile(niftidir,'HRFindex.nii'), info);
+
+        % save meanvol:
+        meanvol = m.meanvol;
+        info = info_base;
+        info.Filename = [];
+        info.Filemoddate = [];
+        info.Filesize = [];
+        info.Datatype = 'single';
+        descrip = 'glmsingle:meanvol';
+        info.Description = descrip;
+        info.raw.descrip = descrip;
+        niftiwrite(meanvol, fullfile(niftidir,'meanvol.nii'), info);
 
     case 'ROI:make_cifti.y_series~'
         %% load SPM file
@@ -352,7 +364,7 @@ switch(what)
         V = {};
         cols = {};
         switch map
-            case 'beta' % beta maps (univariate GLM)
+            case 'beta' % beta maps (%BOLD)
                 fnames = dir(fullfile(dir_glm,'beta_*.nii'));
                 for f = 1:length(fnames)
                     V{f} = fullfile(fnames(f).folder, fnames(f).name);
@@ -360,6 +372,12 @@ switch(what)
                 end
             case 't' % t-values maps (univariate GLM)
                 fnames = dir(fullfile(dir_glm,'tmap_*.nii'));
+                for f = 1:length(fnames)
+                    V{f} = fullfile(fnames(f).folder, fnames(f).name);
+                    cols{f} = fnames(f).name;
+                end
+            case 'meanvol' % mean volume
+                fnames = dir(fullfile(dir_glm,'meanvol.nii'));
                 for f = 1:length(fnames)
                     V{f} = fullfile(fnames(f).folder, fnames(f).name);
                     cols{f} = fnames(f).name;
