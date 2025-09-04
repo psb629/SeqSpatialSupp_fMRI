@@ -408,6 +408,12 @@ switch(what)
         % [R, V] = sss_hrf('ROI:deform','sn',sn,'glm',glm,'LR',LR);
         R = load(fname); R = R.R;
 
+        % change the mask file (ref)
+        for ii = 1:length(R)
+            % R{ii}.image = regexprep(R{ii}.image, 'glm_\d+', glmDir);
+            R{ii}.image = fullfile(dir_glmsingle, glmDir, subj_id, 'mask.nii');
+        end
+
         % 피험자 EPI 의 3-D 정보
         % VolFile = fullfile(baseDir,glmDir,subj_id,'mask.nii');
         VolFile = R{1,1}.image;
@@ -426,6 +432,8 @@ switch(what)
                 fnames = dir(fullfile(dir_glmsingle, glmDir, subj_id, 'HRFindex.nii'));
             case {'BETA','beta','Beta'}
                 fnames = dir(fullfile(dir_glmsingle, glmDir, subj_id, 'beta_*.nii'));
+            case {'MEANVOL','meanvol','MeanVol'}
+                fnames = dir(fullfile(dir_glmsingle, glmDir, subj_id, 'meanvol.nii'));
         end
         
         dir_output = fullfile(dir_glmsingle, glmDir, roiDir);
@@ -463,6 +471,7 @@ switch(what)
 
             fname = fullfile(dir_output,sss);
             if ~exist(fname,'file')
+                % https://github.com/Washington-University/cifti-matlab.git
                 cii = region_make_cifti(R{jj},V,'data',D{jj}','dtype',dtype,'struct',area,'TR',TR);
             end
             cifti_write(cii, fname);
