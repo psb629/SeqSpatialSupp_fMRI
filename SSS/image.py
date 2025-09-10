@@ -267,7 +267,7 @@ def get_df_window_y(subj, glm, roi, param, pre=10, post=20, gap=0, TR=1):
 
 	return df_window_y
 
-def get_WPM(subj, glm):
+def get_WPM(subj, glm, hem='L'):
 	"""
 	Return
 		cerebral images: gifti, gifti, and nifti
@@ -276,8 +276,8 @@ def get_WPM(subj, glm):
 	dir_glm = su.get_dir_glm(glm)
 	S_id = su.get_S_id(subj)
 
-	white = join(dir_surf,S_id,'%s.L.white.32k.surf.gii'%S_id)
-	pial = join(dir_surf,S_id,'%s.L.pial.32k.surf.gii'%S_id)
+	white = join(dir_surf,S_id,'%s.%s.white.32k.surf.gii'%(S_id,hem))
+	pial = join(dir_surf,S_id,'%s.%s.pial.32k.surf.gii'%(S_id,hem))
 
 	mask = join(dir_glm,subj,'mask.nii')
 
