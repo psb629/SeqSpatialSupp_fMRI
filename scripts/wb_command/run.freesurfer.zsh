@@ -28,5 +28,6 @@ recon-all \
 	-sid	$subj \
 	-sd		$dir_FreeSurfer \
 	-i		$dir_anat/$subj/${subj}_anatomical.nii \
-	-all
+	-all \
+	-cw256
 	
