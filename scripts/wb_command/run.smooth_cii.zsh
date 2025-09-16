@@ -2,6 +2,7 @@
 
 ##############################################################
 gs='n'
+axis='COLUMN'
 ## $# = the number of arguments
 while (( $# )); do
 	key="$1"
@@ -9,30 +10,18 @@ while (( $# )); do
 ##		pattern)
 ##			sentence
 ##		;;
-		-s | --subject)
-			subj="$2"
+		-i | --input)
+			input="$2"
 		;;
-		-h | --hem)
-			hem="$2"
+		-a | --axis)
+			axis="$2"
 		;;
-		-gs | --glmsingle)
-			gs="$2"
-		;;
-		-g | --glm)
-			glm="$2"
-		;;
-		-m | --map)
-			map="$2"
-		;;
-		--help)
+		-h | --help)
 			cat <<EOF
 ===========================================
 Options:
-	-s | --subject
-	-h | --hem
-	-g | --glm
-	-m | --map
-	-gs | --glmsingle (default: n)
+	-i | --input
+	-a | --axis (default: column)
 ===========================================
 EOF
 		exit
@@ -40,31 +29,27 @@ EOF
 	esac
 	shift ##takes one argument
 done
-glm1d=`printf "%1d\n" $glm`
-hem=${hem:u}
 ##############################################################
-dir_root='/Volumes/Diedrichsen_data$/data/SeqSpatialSupp_fMRI'
-dir_fs=$dir_root/FreeSurfer
-dir_fs=$HOME/github/fs_LR_32
+axis=${axis:u}
+fname=${input:t}
+dname=${input:h}
 ##############################################################
-case $gs in \
-	'yes' | 'y')
-		dir_work=$dir_root/GLMsingle/glm_${glm1d}/surfaceWB/$subj
+case "$(uname)" in
+	Darwin)
+		dir_root='/Volumes/Diedrichsen_data$/data/SeqSpatialSupp_fMRI'
 	;;
-	'no' | 'n')
-		dir_work=$dir_root/surfaceWB/glm_${glm1d}/$subj
-	;;
-	*)
-		dir_work=$dir_root/glm_${glm1d}
+	Linux)
+		dir_root='/mnt/f/SeqSpatialSupp_fMRI'
 	;;
 esac
+dir_fs=$HOME/github/fs_LR_32
 ##############################################################
 wb_command \
-	-cifti-smoothing $dir_work/$subj.$hem.glm_${glm1d}.$map.dscalar.nii \
-	2 2 COLUMN \
-	$dir_work/$subj.$hem.glm_${glm1d}.${map}_smooth.dscalar.nii \
-    -left-surface $dir_fs/fs_LR.32k.L.midthickness.surf.gii \
-    -right-surface $dir_fs/fs_LR.32k.R.midthickness.surf.gii
+	-cifti-smoothing $input \
+	2 2 $axis \
+	$dname/smooth.$fname \
+	-left-surface $dir_fs/fs_LR.32k.L.midthickness.surf.gii \
+	-right-surface $dir_fs/fs_LR.32k.R.midthickness.surf.gii
 
 
  #wb_command \
