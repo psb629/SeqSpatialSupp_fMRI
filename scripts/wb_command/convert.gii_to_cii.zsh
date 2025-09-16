@@ -30,7 +30,7 @@ while (( $# )); do
 Options:
 	-s | --subject
 	-h | --hem
-	-g | -glm
+	-g | --glm
 	-m | --map
 	--glmsingle
 ===========================================
@@ -40,8 +40,8 @@ EOF
 	esac
 	shift ##takes one argument
 done
-glm1d=`printf "%1d\n" $gs`
-hem=${hem:l}
+glm1d=`printf "%1d\n" $glm`
+hem=${hem:u}
 ##############################################################
 dir_root='/Volumes/Diedrichsen_data$/data/SeqSpatialSupp_fMRI'
 dir_surf=$dir_root/surfaceWB
