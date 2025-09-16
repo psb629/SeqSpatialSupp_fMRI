@@ -15,7 +15,7 @@ while (( $# )); do
 		-h | --hem)
 			hem="$2"
 		;;
-		--glmsingle)
+		-gs | --glmsingle)
 			gs="$2"
 		;;
 		-g | --glm)
@@ -30,9 +30,9 @@ while (( $# )); do
 Options:
 	-s | --subject
 	-h | --hem
-	-g | -glm
+	-g | --glm
 	-m | --map
-	--glmsingle
+	-gs | --glmsingle (default: n)
 ===========================================
 EOF
 		exit
@@ -40,11 +40,12 @@ EOF
 	esac
 	shift ##takes one argument
 done
-glm1d=`printf "%1d\n" $gs`
-hem=${hem:l}
+glm1d=`printf "%1d\n" $glm`
+hem=${hem:u}
 ##############################################################
 dir_root='/Volumes/Diedrichsen_data$/data/SeqSpatialSupp_fMRI'
-dir_surf=$dir_root/surfaceWB
+dir_fs=$dir_root/FreeSurfer
+dir_fs=$HOME/github/fs_LR_32
 ##############################################################
 case $gs in \
 	'yes' | 'y')
@@ -59,28 +60,17 @@ case $gs in \
 esac
 ##############################################################
 wb_command \
-	-cifti-smoothing bold.dtseries.nii 2 2 COLUMN bold_smooth.dtseries.nii \
-    -left-surface subject.L.midthickness.surf.gii \
-    -right-surface subject.R.midthickness.surf.gii
+	-cifti-smoothing $dir_work/$subj.$hem.glm_${glm1d}.$map.dscalar.nii \
+	2 2 COLUMN \
+	$dir_work/$subj.$hem.glm_${glm1d}.${map}_smooth.dscalar.nii \
+    -left-surface $dir_fs/fs_LR.32k.L.midthickness.surf.gii \
+    -right-surface $dir_fs/fs_LR.32k.R.midthickness.surf.gii
 
-wb_command \
-	-cifti-smoothing bold.dtseries.nii 7 7 COLUMN bold_roi_smooth.dtseries.nii \
-    -fwhm \
-    -left-surface subject.L.midthickness.surf.gii \
-    -right-surface subject.R.midthickness.surf.gii \
-    -cifti-roi roi_mask.dscalar.nii
 
-case $map in \
-	'beta')
-		wb_command \
-			-cifti-create-dense-timeseries $dir_work/$subj.$hem.glm_${glm1d}.$map.dtseries.nii \
-	    	-left-metric $dir_work/$subj.$hem.glm_${glm1d}.$map.func.gii \
-		    -timestep $TR -timestart $onset
-	;;	
-	*)
-		wb_command \
-			-cifti-create-dense-scalar $dir_work/$subj.$hem.glm_${glm1d}.$map.dscalar.nii \
-	    	-left-metric $dir_work/$subj.$hem.glm_${glm1d}.$map.func.gii
-	;;
-esac
+ #wb_command \
+ #	-cifti-smoothing bold.dtseries.nii 7 7 COLUMN bold_roi_smooth.dtseries.nii \
+ #    -fwhm \
+ #    -left-surface subject.L.midthickness.surf.gii \
+ #    -right-surface subject.R.midthickness.surf.gii \
+ #    -cifti-roi roi_mask.dscalar.nii
 
