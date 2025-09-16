@@ -15,7 +15,7 @@ while (( $# )); do
 		-h | --hem)
 			hem="$2"
 		;;
-		--glmsingle)
+		-gs | --glmsingle)
 			gs="$2"
 		;;
 		-g | --glm)
@@ -32,7 +32,7 @@ Options:
 	-h | --hem
 	-g | --glm
 	-m | --map
-	--glmsingle
+	-gs | --glmsingle (default: n)
 ===========================================
 EOF
 		exit
@@ -63,15 +63,19 @@ esac
 
 case $map in \
 	'beta')
+		fname="$dir_work/$subj.$hem.glm_${glm1d}.$map.dtseries.nii"
 		wb_command \
-			-cifti-create-dense-timeseries $dir_work/$subj.$hem.glm_${glm1d}.$map.dtseries.nii \
+			-cifti-create-dense-timeseries $fname \
 	    	-left-metric $dir_work/$subj.$hem.glm_${glm1d}.$map.func.gii \
 		    -timestep $TR -timestart $onset
+		echo " Created $fname"
 	;;	
 	*)
+		fname="$dir_work/$subj.$hem.glm_${glm1d}.$map.dscalar.nii"
 		wb_command \
-			-cifti-create-dense-scalar $dir_work/$subj.$hem.glm_${glm1d}.$map.dscalar.nii \
+			-cifti-create-dense-scalar $fname \
 	    	-left-metric $dir_work/$subj.$hem.glm_${glm1d}.$map.func.gii
+		echo " Created $fname"
 	;;
 esac
 
