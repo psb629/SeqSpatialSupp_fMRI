@@ -5,6 +5,13 @@ elseif ismac
     rootDir = '/Volumes/Diedrichsen_data$/data/SeqSpatialSupp_fMRI';
     dir_git = '/Users/sungbeenpark/github';
     addpath(genpath('/Users/sungbeenpark/SPM')); % nanmean (in surf_vol2surf)
+    % SPM
+    addpath('/Users/sungbeenpark/spm');
+    % FreeSurfer
+    setenv('FREESURFER_HOME', '/Applications/freesurfer/8.1.0');
+    setenv('PATH', [getenv('FREESURFER_HOME') '/bin:' getenv('PATH')]);
+    % WorkBench
+    setenv('PATH', ['/Users/sungbeenpark/workbench/bin_macosxub:' getenv('PATH')]);
 else
     fprintf('Workdir not found. Mount or connect to server and try again.');
 end
@@ -17,7 +24,7 @@ imagingDir      = 'imaging_data';               % Preprocesses functional data
 anatomicalDir   = 'anatomicals';                % Preprocessed anatomicalcentr data (LPI + center AC + segemnt)
 fmapDir         = 'fieldmaps';                  % Fieldmap dir after moving from BIDS and SPM make fieldmap
 suitDir         = 'suit';
-freesurferDir   = 'freesurf';
+fsDir           = 'Freesurfer';
 wbDir           = 'surfaceWB';
 roiDir          = 'ROI';
 

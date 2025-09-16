@@ -31,7 +31,7 @@ if isempty(sn)
 end
 
 %% load participants.tsv
-fname = fullfile(dir_git,'SeqSpatialSupp_fMRI/participants.tsv');
+fname = fullfile(baseDir,'participants.tsv');
 [subj_id, S_id] = get_id(fname, sn);
 pinfo = dload(fname);
 
@@ -322,6 +322,16 @@ prefix = 'u';  % Unwarped
             matlabbatch{1}.spm.spatial.preproc=J;
             spm_jobman('run',matlabbatch);
         end
+
+    case 'WB:surf_resample'
+
+        dir_freesurf = fullfile(baseDir,fsDir);
+        dir_wb = fullfile(baseDir,wbDir);
+        % anafile = fullfile(dir_freesurf,S_id,'mri','brain.mgz');
+        % [status,result] = system(['mri_info ' anafile ' --vox2ras-tkr']);
+        % A=sscanf(result,'%f');
+        % Mvox2surf=reshape(A,4,4)';
+        surf_resliceFS2WB(S_id,dir_freesurf,dir_wb,'resolution','32k');
 
     case 'FUNC:make_fmap'                
         % Description:
