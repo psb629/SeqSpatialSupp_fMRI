@@ -28,6 +28,7 @@ def get_border(path_surfAnalysisPY, hemi='L'):
 	hemi_ = hemi.upper()
 	path_border = join(path_surfAnalysisPY,'standard_mesh/fs_%s/fs_LR.32k.%s.border'%(hemi_,hemi_))
 
+	## Sulci: superior frontal sulcus (SFS), inferior frontal sulcus (IFS), precentral sulcus (PrCS), central sulcus (CS), postcentral sulcus (PoCS), intraparietal sulcus (IPS), parieto-occipital sulcus (POS), lateral occipital sulcus (LOS), lunate sulcus (LnS), superior temporal sulcus (STS), inferior temporal sulcus (ITS), collateral sulcus (CoS), sylvian fissure (SF)
 	labels = {}
 	labels['PrCS'] = [-20, 110]
 	labels['CS'] = [20, 125]
