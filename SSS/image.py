@@ -28,7 +28,17 @@ def get_border(path_surfAnalysisPY, hemi='L'):
 	hemi_ = hemi.upper()
 	path_border = join(path_surfAnalysisPY,'standard_mesh/fs_%s/fs_LR.32k.%s.border'%(hemi_,hemi_))
 
-	return path_border
+	labels = {}
+	labels['PrCS'] = [-20, 110]
+	labels['CS'] = [20, 125]
+	labels['PoCS'] = [50, 115]
+	labels['SFS'] = [-70, 70]
+	labels['IFS'] = [-70, 15]
+	labels['IPS'] = [100, 90]
+	labels['POS'] = [145, 125]
+	labels['STS'] = [95, 30]
+
+	return path_border, labels
 
 def load_mask(subj, glm=1, as_nii=True):
 	"""
