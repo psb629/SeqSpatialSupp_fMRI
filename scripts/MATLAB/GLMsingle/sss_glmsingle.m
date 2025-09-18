@@ -190,6 +190,123 @@ switch(what)
         info.raw.descrip = descrip;
         niftiwrite(meanvol, fullfile(niftidir,'meanvol.nii'), info);
 
+    case 'GLM:t_contrast~'
+        %% load SPM file
+        SPM = load(fullfile(SPM_folder,'SPM.mat'));
+        SPM = SPM.SPM;
+
+        dir_work = fullfile(dir_glmsingle, glmDir, subj_id);
+        %% load the mask :
+        mask = niftiread(fullfile(baseDir,'glm_1',subj_id,'mask.nii'));
+
+        %% load the design:
+        designinfo = load(fullfile(dir_work, 'DESIGNINFO.mat'));
+
+        %% load the reginfo:
+        T = dload(fullfile(dir_work, 'reginfo.tsv'));
+        
+        %% load betas:
+        betafiles = dir(fullfile(dir_work, 'beta*.nii'));
+        beta = {};
+        info = {};
+        for i = 1:length(betafiles)
+            beta{i,1} = niftiread(fullfile(betafiles(i).folder, betafiles(i).name));
+            beta{i,1} = beta{i,1} .* single(mask);
+            info{i,1} = niftiinfo(fullfile(betafiles(i).folder, betafiles(i).name));
+        end
+        
+        %% set the contrasts:
+        conditions = unique(T.name);
+        xCon = {};
+        for c = 1:length(conditions)
+            cond = conditions{c};
+            
+            % contrast
+            xcon = zeros(size(designinfo.stimorder,2),1);
+            xcon(strcmp(T.name, cond)) = 1;
+            xcon = xcon / sum(xcon);
+            
+            % design matrix Xs
+            Xs=0; for i=1:length(designinfo.designSINGLE); Xs=Xs+designinfo.designSINGLE{i}; end;
+            
+            if isempty(xCon) % empty
+                xCon = spm_FcUtil('Set', cond, 'T', 'c', xcon, Xs);
+            elseif sum(strcmp(cond, {xCon.name})) > 0 % replace
+                idx = find(strcmp(cond, {xCon.name}));
+                xCon(idx) = spm_FcUtil('Set', cond, 'T', 'c', xcon, Xs);
+            else % new
+                xCon(end+1) = spm_FcUtil('Set', cond, 'T', 'c', xcon, Xs);
+            end
+            % idx = find(strcmp(T.name,cond));
+            % select_betas = beta(idx);
+            % cat4d = cat(4, select_betas{:});
+            % tstats = nanmean(cat4d,4) ./ (std(cat4d,[],4)./sqrt(length(idx)));
+            % tstats(isnan(tstats)) = 0;
+            % % save tstats:
+            % infotmp = info{1};
+            % infotmp.Filename = [];
+            % infotmp.Filemoddate = [];
+            % infotmp.Filesize = [];
+            % descrip = sprintf('t-stats:%s',conditions{i});
+            % infotmp.Description = descrip;
+            % infotmp.raw.descrip = descrip;
+            % niftiwrite(tstats,fullfile(niftidir,sprintf('tmap_%s.nii',replace(conditions{i},":", "-"))), infotmp);
+        end
+        % save(fullfile(dir_work, 'xCon.mat'), 'xCon', '-v7.3');
+
+        %% extra contrasts
+        % SPM = sss_GLM('GLM:custom_contrast','sn',sn,'glm',glm);
+        
+        %% run contrasts
+        SPM = spm_contrasts(SPM, 1:length(xCon));
+    
+    case 'WB:vol2surf'
+        % https://github.com/DiedrichsenLab/surfAnalysis.git
+        % https://github.com/nno/surfing.git
+        dir_work = fullfile(dir_glmsingle,glmDir,wbDir,subj_id);
+        if (~exist(dir_work,'dir'))
+            mkdir(dir_work);
+        end
+        dir_glm = fullfile(dir_glmsingle,glmDir,subj_id);
+
+        V = {};
+        cols = {};
+        switch map
+            case 'beta' % beta maps (%BOLD)
+                fnames = dir(fullfile(dir_glm,'beta_*.nii'));
+                for f = 1:length(fnames)
+                    V{f} = fullfile(fnames(f).folder, fnames(f).name);
+                    cols{f} = fnames(f).name;
+                end
+            case 't' % t-values maps (univariate GLM)
+                fnames = dir(fullfile(dir_glm,'t_*.nii'));
+                for f = 1:length(fnames)
+                    V{f} = fullfile(fnames(f).folder, fnames(f).name);
+                    cols{f} = fnames(f).name;
+                end
+            case 'meanvol' % mean volume
+                fnames = dir(fullfile(dir_glm,'meanvol.nii'));
+                for f = 1:length(fnames)
+                    V{f} = fullfile(fnames(f).folder, fnames(f).name);
+                    cols{f} = fnames(f).name;
+                end
+        end
+        writecell(cols, fullfile(dir_work,sprintf('%s.%s_orders.csv',subj_id,map)), 'Delimiter', 'tab');
+
+        for h = [1 2]
+            white = fullfile(baseDir,wbDir,S_id,sprintf('%s.%s.white.32k.surf.gii',S_id,hem{h}));
+            pial = fullfile(baseDir,wbDir,S_id,sprintf('%s.%s.pial.32k.surf.gii',S_id,hem{h}));
+            C1 = gifti(white);
+            C2 = gifti(pial);
+          
+            output = fullfile(dir_work,sprintf('%s.%s.glm_%d.%s.func.gii',subj_id,hem{h},glm,map));
+            G = surf_vol2surf(C1.vertices, C2.vertices, V, 'anatomicalStruct', hname{h}, 'exclude_thres', 0.9, 'faces', C2.faces, 'ignore_zeros', 0);
+            G = surf_makeFuncGifti(G.cdata,'anatomicalStruct', hname{h}, 'columnNames', cols);
+            save(G, output);
+
+            fprintf('mapped %s %s glm_%d \n', subj_id, hem{h}, glm);
+        end
+
     case 'ROI:make_cifti.y_series~'
         %% load SPM file
         SPM = load(fullfile(SPM_folder,'SPM.mat'));
@@ -289,114 +406,6 @@ switch(what)
             y_noise = nuisance_regressors * betas_nuisance;
             % y_adj = [y_adj (selected_data' - y_noise)'];
             y_adj(:,(ii-1)*740+1:ii*740) = (selected_data' - y_noise)';
-        end
-
-    case 'GLM:t_contrast~'
-        dir_work = fullfile(dir_glmsingle, glmDir, subj_id);
-        % Make t-maps:
-        mask = niftiread(fullfile(baseDir,'glm_1',subj_id,'mask.nii'));
-        % load design:
-        designinfo = load(fullfile(dir_work, 'DESIGNINFO.mat'));
-        % load reginfo:
-        T = dload(fullfile(dir_work, 'reginfo.tsv'));
-        
-        %% load betas:
-        betafiles = dir(fullfile(dir_work, 'beta*.nii'));
-        beta = {};
-        info = {};
-        for i = 1:length(betafiles)
-            beta{i,1} = niftiread(fullfile(betafiles(i).folder, betafiles(i).name));
-            beta{i,1} = beta{i,1} .* single(mask);
-            info{i,1} = niftiinfo(fullfile(betafiles(i).folder, betafiles(i).name));
-        end
-        
-        %% estimate t-maps:
-        conditions = unique(T.name);
-        xCon = {};
-        for c = 1:length(conditions)
-            cond = conditions{c};
-            
-            % contrast
-            xcon = zeros(size(designinfo.stimorder,2),1);
-            xcon(strcmp(T.name, cond)) = 1;
-            xcon = xcon / sum(xcon);
-            
-            % design matrix Xs
-            Xs=0; for i=1:length(designinfo.designSINGLE); Xs=Xs+designinfo.designSINGLE{i}; end;
-            
-            if isempty(xCon) % empty
-                xCon = spm_FcUtil('Set', cond, 'T', 'c', xcon, Xs);
-            elseif sum(strcmp(cond, {xCon.name})) > 0 % replace
-                idx = find(strcmp(cond, {xCon.name}));
-                xCon(idx) = spm_FcUtil('Set', cond, 'T', 'c', xcon, Xs);
-            else % new
-                xCon(end+1) = spm_FcUtil('Set', cond, 'T', 'c', xcon, Xs);
-            end
-            % idx = find(strcmp(T.name,cond));
-            % select_betas = beta(idx);
-            % cat4d = cat(4, select_betas{:});
-            % tstats = nanmean(cat4d,4) ./ (std(cat4d,[],4)./sqrt(length(idx)));
-            % tstats(isnan(tstats)) = 0;
-            % % save tstats:
-            % infotmp = info{1};
-            % infotmp.Filename = [];
-            % infotmp.Filemoddate = [];
-            % infotmp.Filesize = [];
-            % descrip = sprintf('t-stats:%s',conditions{i});
-            % infotmp.Description = descrip;
-            % infotmp.raw.descrip = descrip;
-            % niftiwrite(tstats,fullfile(niftidir,sprintf('tmap_%s.nii',replace(conditions{i},":", "-"))), infotmp);
-        end
-        % save(fullfile(dir_work, 'xCon.mat'), 'xCon', '-v7.3');
-        
-        %% run contrasts
-        SPM = spm_contrasts(SPM, 1:length(xCon));
-    
-    case 'WB:vol2surf'
-        % https://github.com/DiedrichsenLab/surfAnalysis.git
-        % https://github.com/nno/surfing.git
-        dir_work = fullfile(dir_glmsingle,glmDir,wbDir,subj_id);
-        if (~exist(dir_work,'dir'))
-            mkdir(dir_work);
-        end
-        dir_glm = fullfile(dir_glmsingle,glmDir,subj_id);
-
-        V = {};
-        cols = {};
-        switch map
-            case 'beta' % beta maps (%BOLD)
-                fnames = dir(fullfile(dir_glm,'beta_*.nii'));
-                for f = 1:length(fnames)
-                    V{f} = fullfile(fnames(f).folder, fnames(f).name);
-                    cols{f} = fnames(f).name;
-                end
-            case 't' % t-values maps (univariate GLM)
-                fnames = dir(fullfile(dir_glm,'tmap_*.nii'));
-                for f = 1:length(fnames)
-                    V{f} = fullfile(fnames(f).folder, fnames(f).name);
-                    cols{f} = fnames(f).name;
-                end
-            case 'meanvol' % mean volume
-                fnames = dir(fullfile(dir_glm,'meanvol.nii'));
-                for f = 1:length(fnames)
-                    V{f} = fullfile(fnames(f).folder, fnames(f).name);
-                    cols{f} = fnames(f).name;
-                end
-        end
-        writecell(cols, fullfile(dir_work,sprintf('%s.%s_orders.csv',subj_id,map)), 'Delimiter', 'tab');
-
-        for h = [1 2]
-            white = fullfile(baseDir,wbDir,S_id,sprintf('%s.%s.white.32k.surf.gii',S_id,hem{h}));
-            pial = fullfile(baseDir,wbDir,S_id,sprintf('%s.%s.pial.32k.surf.gii',S_id,hem{h}));
-            C1 = gifti(white);
-            C2 = gifti(pial);
-          
-            output = fullfile(dir_work,sprintf('%s.%s.glm_%d.%s.func.gii',subj_id,hem{h},glm,map));
-            G = surf_vol2surf(C1.vertices, C2.vertices, V, 'anatomicalStruct', hname{h}, 'exclude_thres', 0.9, 'faces', C2.faces, 'ignore_zeros', 0);
-            G = surf_makeFuncGifti(G.cdata,'anatomicalStruct', hname{h}, 'columnNames', cols);
-            save(G, output);
-
-            fprintf('mapped %s %s glm_%d \n', subj_id, hem{h}, glm);
         end
 
     case 'ROI:make_cifti'
