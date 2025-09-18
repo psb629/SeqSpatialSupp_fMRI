@@ -79,11 +79,11 @@ fi
 ##############################################################
 ## Merge
 echo " # Merging the GIFTIs"
- #cd $dir_tmp
- #wb_command -metric-merge betas.L.func.gii \
- #	$(for f in beta_*.L.func.gii; do echo "-metric $f"; done)
- #wb_command -metric-merge betas.R.func.gii \
- #	$(for f in beta_*.R.func.gii; do echo "-metric $f"; done)
+cd $dir_tmp
+wb_command -metric-merge betas.L.func.gii \
+	$(for f in beta_*.L.func.gii; do echo "-metric $f"; done)
+wb_command -metric-merge betas.R.func.gii \
+	$(for f in beta_*.R.func.gii; do echo "-metric $f"; done)
 ##############################################################
 ## Converting: GITFI -> CIFTI
 echo " # Creating CIFTI"
