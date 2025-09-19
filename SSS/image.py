@@ -1,4 +1,5 @@
 from os.path import join
+from os import getcwd, makedirs
 from glob import glob
 
 import numpy as np
@@ -375,3 +376,17 @@ def load_contrast_order(subj, glm, map='con'):
 	)
 
 	return order
+
+def save_surf2cifti(data, label_axis, dir_output, prefix='p'):
+	"""
+	Save the data as a CifTi file.
+	"""
+	makedirs(dir_output, exist_ok=True)
+	bm_axis = nb.cifti2.BrainModelAxis.from_surface(
+		vertices=np.arange(32492), nvertex=32492, name='CortexLeft'
+	)
+	scalar_axis = nb.cifti2.ScalarAxis(label_axis)
+	header = nb.Cifti2Header.from_axes((scalar_axis, bm_axis))
+
+	cii = nb.Cifti2Image(dataobj=data, header=header)
+	nb.save(cii, join(dir_output, '%s.dscalar.nii'%prefix))
