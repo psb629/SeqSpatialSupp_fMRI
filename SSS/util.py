@@ -8,26 +8,6 @@ import pandas as pd
 import re
 import scipy
 
-def convert_pval_to_star(pvalue):
-	res = "ns"
-	if pvalue <= 0.0001:
-		res = "****"
-	elif pvalue <= 0.001:
-		res = "***"
-	elif pvalue <= 0.01:
-		res = "**"
-	elif pvalue <= 0.05:
-		res = "*"
-	
-	return res
-
-def convert_alpha_to_tval(alpha=0.05, df=None, alternative='two-sided'):
-	if alternative == 'one-sided':
-		alpha = alpha * 2
-	thresh = scipy.stats.t.ppf(1-0.5*alpha, df=df)
-	
-	return thresh
-
 def get_dir_SSS():
 	dir_current = getcwd().replace('\\','/')
 
