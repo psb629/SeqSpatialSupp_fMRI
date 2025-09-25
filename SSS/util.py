@@ -63,6 +63,11 @@ def get_dir_surf():
 
 	return join(dir_root,'surfaceWB')
 
+def get_dir_fs():
+	dir_root = get_dir_root()
+
+	return join(dir_root,'FreeSurfer')
+
 def get_dir_roi():
 	dir_root = get_dir_root()
 
