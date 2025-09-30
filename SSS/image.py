@@ -1,5 +1,5 @@
-from os.path import join
-from os import getcwd, makedirs
+from os.path import join, exists
+from os import getcwd, makedirs, remove
 from glob import glob
 
 import numpy as np
@@ -389,4 +389,7 @@ def save_surf2cifti(data, label_axis, dir_output, prefix='p'):
 	header = nb.Cifti2Header.from_axes((scalar_axis, bm_axis))
 
 	cii = nb.Cifti2Image(dataobj=data, header=header)
-	nb.save(cii, join(dir_output, '%s.dscalar.nii'%prefix))
+	fname = join(dir_output, '%s.dscalar.nii'%prefix)
+	if exists(fname):
+		remove(fname)
+	nb.save(cii, fname)
