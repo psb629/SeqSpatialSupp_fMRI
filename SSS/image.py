@@ -26,6 +26,7 @@ def get_underlay(path_surfAnalysisPY, hemi='L'):
 	return path_underlay
 
 def get_border(dir_git, atlas=None, hemi='L'):
+	dir_roi = su.get_dir_roi()
 	hemi_ = hemi.upper()
 
 	labels = {}
