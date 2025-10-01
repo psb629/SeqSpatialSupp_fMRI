@@ -25,20 +25,23 @@ def get_underlay(path_surfAnalysisPY, hemi='L'):
 
 	return path_underlay
 
-def get_border(path_surfAnalysisPY, hemi='L'):
+def get_border(dir_git, atlas=None, hemi='L'):
 	hemi_ = hemi.upper()
-	path_border = join(path_surfAnalysisPY,'standard_mesh/fs_%s/fs_LR.32k.%s.border'%(hemi_,hemi_))
 
-	## Sulci: superior frontal sulcus (SFS), inferior frontal sulcus (IFS), precentral sulcus (PrCS), central sulcus (CS), postcentral sulcus (PoCS), intraparietal sulcus (IPS), parieto-occipital sulcus (POS), lateral occipital sulcus (LOS), lunate sulcus (LnS), superior temporal sulcus (STS), inferior temporal sulcus (ITS), collateral sulcus (CoS), sylvian fissure (SF)
 	labels = {}
-	labels['PrCS'] = [-20, 110]
-	labels['CS'] = [20, 125]
-	labels['PoCS'] = [50, 115]
-	labels['SFS'] = [-70, 70]
-	labels['IFS'] = [-70, 15]
-	labels['IPS'] = [100, 90]
-	labels['POS'] = [145, 125]
-	labels['STS'] = [95, 30]
+	if atlas=='sulcus':
+		path_border = join(dir_git,'surfAnalysisPy/standard_mesh/fs_%s/fs_LR.32k.%s.border'%(hemi_,hemi_))
+		## Sulci: superior frontal sulcus (SFS), inferior frontal sulcus (IFS), precentral sulcus (PrCS), central sulcus (CS), postcentral sulcus (PoCS), intraparietal sulcus (IPS), parieto-occipital sulcus (POS), lateral occipital sulcus (LOS), lunate sulcus (LnS), superior temporal sulcus (STS), inferior temporal sulcus (ITS), collateral sulcus (CoS), sylvian fissure (SF)
+		labels['PrCS'] = [-20, 110]
+		labels['CS'] = [20, 125]
+		labels['PoCS'] = [50, 115]
+		labels['SFS'] = [-70, 70]
+		labels['IFS'] = [-70, 15]
+		labels['IPS'] = [100, 90]
+		labels['POS'] = [145, 125]
+		labels['STS'] = [95, 30]
+	elif atlas=='Glasser':
+		path_border = join(dir_roi,'Q1-Q6_RelatedParcellation210.L.CorticalAreas_dil.32k_fs_LR.border')
 
 	return path_border, labels
 
