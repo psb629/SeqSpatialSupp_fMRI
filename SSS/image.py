@@ -19,9 +19,9 @@ def get_list_roi():
 
 	return np.array(['S1', 'M1', 'PMd', 'PMv', 'SMA', 'V1', 'SPLa', 'SPLp'])
 
-def get_underlay(path_surfAnalysisPY, hemi='L'):
+def get_underlay(path_surfAnalysisPy, hemi='L'):
 	hemi_ = hemi.upper()
-	path_underlay = join(path_surfAnalysisPY,'standard_mesh/fs_%s/fs_LR.32k.LR.sulc.dscalar.nii'%hemi)
+	path_underlay = join(path_surfAnalysisPy,'standard_mesh/fs_%s/fs_LR.32k.LR.sulc.dscalar.nii'%hemi)
 
 	return path_underlay
 
