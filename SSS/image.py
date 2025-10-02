@@ -381,7 +381,7 @@ def load_contrast_order(subj, glm, map='con'):
 
 	return order
 
-def save_surf2cifti(data, label_axis, dir_output, prefix='p'):
+def save_surf2cifti(data, label_axis, dir_output, prefix='p', type_='dscalar'):
 	"""
 	Save the data as a CifTi file.
 	"""
@@ -393,7 +393,7 @@ def save_surf2cifti(data, label_axis, dir_output, prefix='p'):
 	header = nb.Cifti2Header.from_axes((scalar_axis, bm_axis))
 
 	cii = nb.Cifti2Image(dataobj=data, header=header)
-	fname = join(dir_output, '%s.dscalar.nii'%prefix)
+	fname = join(dir_output, '%s.%s.nii'%(prefix,type_))
 	if exists(fname):
 		remove(fname)
 	nb.save(cii, fname)
