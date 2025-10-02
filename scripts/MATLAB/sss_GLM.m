@@ -619,7 +619,7 @@ switch(what)
         varargout{1} = SPM;
 
     case 'WB:vol2surf' % map indiv vol contrasts (.nii) onto surface (.gii)
-        dir_work = fullfile(baseDir,wbDir,glmDir);
+        dir_work = fullfile(baseDir,wbDir,glmDir,S_id);
         if (~exist(dir_work,'dir'))
             mkdir(dir_work);
         end
@@ -671,6 +671,7 @@ switch(what)
             C2 = gifti(pial);
           
             output = fullfile(dir_work,sprintf('%s.%s.glm_%d.%s.func.gii',subj_id,hem{h},glm,map));
+            % https://github.com/nno/surfing.git
             G = surf_vol2surf(C1.vertices, C2.vertices, V, 'anatomicalStruct', hname{h}, 'exclude_thres', 0.9, 'faces', C2.faces, 'ignore_zeros', 0);
             G = surf_makeFuncGifti(G.cdata,'anatomicalStruct', hname{h}, 'columnNames', cols);
             save(G, output);
