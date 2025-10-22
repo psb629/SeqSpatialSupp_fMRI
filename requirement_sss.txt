@@ -10,3 +10,4 @@ nipype
 h5py
 ipykernel
 jupyter
+nipy
