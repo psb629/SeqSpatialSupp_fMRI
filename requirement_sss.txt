@@ -11,3 +11,4 @@ nipype
 h5py
 ipykernel
 jupyter
+statsmodels
