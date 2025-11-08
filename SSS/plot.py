@@ -107,3 +107,16 @@ def plot_BF(xBF, ax=None):
 
 	return ax
 
+def norm_cmap(cmap=cm.jet, vmax=10, thresh=3.5):
+	gray = [0.5,0.5,0.5,1.0]
+	## 색상 샘플링
+	colors = cmap(np.linspace(0, 1, 256))
+	## value range: -vmax, ..., -thresh, ..., 0, ..., thresh, ..., vmax
+	ratio = thresh/vmax
+	idx_gray = np.linspace(0, 2, 256)-1
+	idx_gray = abs(idx_gray)<ratio
+	assert len(colors)==len(idx_gray)
+	colors[idx_gray] = gray
+	cmap = mcolors.ListedColormap(colors)
+
+	return cmap
