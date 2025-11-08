@@ -33,12 +33,13 @@ sn = [];
 glm = [];
 % stimdur = 0.1;
 stimdur = 2;
-vararginoptions(varargin,{'sn','glm','stimdur','map'});
+all = false;
+vararginoptions(varargin,{'sn','glm','stimdur','map','all'});
 
 if isempty(sn)
     error('GLM:design -> ''sn'' must be passed to this function.')
 end
-[subj_id, S_id] = get_id(fullfile(baseDir,'participants.tsv'), sn);
+[subj_id, S_id] = get_id(fullfile(baseDir,'participants.tsv'), sn, all);
 if isempty(glm)
     error('GLM:design -> ''glm'' must be passed to this function.')
 end

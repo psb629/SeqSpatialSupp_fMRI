@@ -1,7 +1,7 @@
 function varargout = sss_GLM(what,varargin)
 
 if ispc
-    cd '\\wsl.localhost/ubuntu-22.04/home/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
+    cd '\\wsl.localhost/ubuntu-24.04/home/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
 elseif ismac
     cd '/Users/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/MATLAB'
 end
@@ -17,7 +17,7 @@ nTRs = 410;
 % nTRs = [410*ones(1,16) 385]; % for S09
 
 %% HRF parameters
-hrf_params_default = [5 15 1 1 6 0 32];
+hrf_params_default = [5.5 12.5 1 1 6 0 32];
 hrf_params = [];
 hrf_cutoff = 128;
 
@@ -25,16 +25,16 @@ map = 'beta';
 %% argument inputs
 sn = [];
 glm = [];
-vararginoptions(varargin,{'sn','glm','nTRs','hrf_params','map'});
+combineSR = false;
+vararginoptions(varargin,{'sn','glm','combineSR','nTRs','hrf_params','map'});
 hrf_params = [hrf_params hrf_params_default(length(hrf_params)+1:end)];
 if length(hrf_params)~=length(hrf_params_default)
     error('Wrong hrf_param [%s].',num2str(hrf_params))
 end
-
 if isempty(sn)
     error('GLM:design -> ''sn'' must be passed to this function.')
 end
-[subj_id, S_id] = get_id(fullfile(baseDir,'participants.tsv'), sn);
+[subj_id, S_id] = get_id(fullfile(baseDir,'participants.tsv'), sn, combineSR);
 
 if isempty(glm)
     error('GLM:design -> ''glm'' must be passed to this function.')
@@ -64,7 +64,7 @@ switch(what)
         save(fullfile(dir_work,'SPM.mat'),'SPM','-v7.3');
 
     case 'GLM:all'
-        spm_get_defaults('cmdline', true);  % Suppress GUI prompts, no request for overwirte
+        spm_get_defaults('cmdline',true);  % Suppress GUI prompts, no request for overwirte
 
         %% Check for and delete existing SPM.mat file
         % spm_file = fullfile(baseDir,glmDir,subj_id,'SPM.mat');
@@ -73,8 +73,8 @@ switch(what)
         % end
 
         %% Run
-        sss_GLM('GLM:design','sn',sn,'glm',glm,'hrf_params',hrf_params);
-        sss_GLM('GLM:estimate','sn',sn,'glm',glm);
+        sss_GLM('GLM:design','sn',sn,'glm',glm,'combineSR',combineSR,'hrf_params',hrf_params);
+        sss_GLM('GLM:estimate','sn',sn,'glm',glm,'combineSR',combineSR);
         % sss_GLM('GLM:t_contrast','sn',sn,'glm',glm);
         % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','beta'); % https://github.com/nno/surfing.git, spm nanmean
         % sss_GLM('WB:vol2surf','sn',sn,'glm',glm,'map','ResMS');
@@ -97,8 +97,20 @@ switch(what)
         % end
 
     case 'GLM:get_event'
-        w = sprintf('GLM:make_glm_%d',glm);
-        events = sss_GLM(w,'sn',sn,'glm',glm);
+        if combineSR
+            w = sprintf('GLM:make_glm_%d',glm);
+            sn = str2double(subj_id);
+            events1 = sss_GLM(w,'sn',sn,'glm',glm);
+            events1(events1.BN==9,:) = [];
+            events2 = sss_GLM(w,'sn',sn+14,'glm',glm);
+            events2(events2.BN==9,:) = [];
+            events2.BN = events2.BN + 8;
+            events = [events1; events2];
+        else
+            w = sprintf('GLM:make_glm_%d',glm);
+            events = sss_GLM(w,'sn',sn,'glm',glm);
+            events(events.BN==9,:) = [];
+        end
 
         % dir_work = fullfile(baseDir,behavDir,sprintf('sub-%s',subj_id));
         % if (~exist(dir_work,'dir'))
@@ -302,7 +314,7 @@ switch(what)
 
         %% cvi type
         % cvi_type = 'wls';
-        cvi_type = 'fast';        
+        cvi_type = 'fast';
         
         %% initiate J
         J = [];
@@ -322,9 +334,32 @@ switch(what)
 
         T = [];
 
-        epi_files = dir(fullfile(baseDir,imagingDir,subj_id,sprintf('%s_run_*.nii',subj_id)));
+        if combineSR
+            epi_files1 = dir(fullfile(baseDir,imagingDir,sprintf('S%s/S%s_run_*.nii',subj_id,subj_id)));
+            epi_files1 = epi_files1(1:8);
+            epi_files2 = dir(fullfile(baseDir,imagingDir,sprintf('R%s/rR%s_run_*.nii',subj_id,subj_id)));
+            if isempty(epi_files2) % reslice
+                epi_files2 = dir(fullfile(baseDir,imagingDir,sprintf('R%s/R%s_run_*.nii',subj_id,subj_id)));
+                epi_files2 = epi_files2(1:8);
+                ref_img = {fullfile(epi_files1(1).folder, sprintf('%s,%d',epi_files1(1).name,numDummys+1))};
+                sessR_imgs = {};
+                for run = 1:8
+                    sessR_imgs{run} = fullfile(epi_files2(run).folder, sprintf('%s',epi_files2(run).name));
+                end
+                spm_reslice([ref_img, sessR_imgs], struct('mean',0,'which',1));
+                epi_files2 = dir(fullfile(baseDir,imagingDir,sprintf('R%s/rR%s_run_*.nii',subj_id,subj_id)));
+            end
+            epi_files2 = epi_files2(1:8);
+            epi_files = [epi_files1; epi_files2];
+        else
+            epi_files = dir(fullfile(baseDir,imagingDir,subj_id,sprintf('%s_run_*.nii',subj_id)));
+        end
 
-        runs = 1:8;
+        if combineSR
+            runs = 1:16;
+        else
+            runs = 1:8;
+        end
         itaskUni = 0;
         for run=runs
             % Setup scans for current session
