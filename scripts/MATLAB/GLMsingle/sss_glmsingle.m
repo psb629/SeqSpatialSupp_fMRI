@@ -31,15 +31,15 @@ hname = {'CortexLeft', 'CortexRight'}; % 'CortexLeft', 'CortexRight', 'Cerebellu
 %% argument inputs
 sn = [];
 glm = [];
+combineSR = false;
 % stimdur = 0.1;
 stimdur = 2;
-all = false;
-vararginoptions(varargin,{'sn','glm','stimdur','map','all'});
+vararginoptions(varargin,{'sn','glm','stimdur','map','combineSR'});
 
 if isempty(sn)
     error('GLM:design -> ''sn'' must be passed to this function.')
 end
-[subj_id, S_id] = get_id(fullfile(baseDir,'participants.tsv'), sn, all);
+[subj_id, S_id] = get_id(fullfile(baseDir,'participants.tsv'), sn, combineSR);
 if isempty(glm)
     error('GLM:design -> ''glm'' must be passed to this function.')
 end
@@ -78,8 +78,10 @@ switch(what)
         % load fMRI data
         data = cell(1,length(SPM.Sess));
         fname = unique(struct2table(SPM.xY.VY).fname);
+        trs = unique(struct2table(SPM.xY.VY).n(:,1));
         for zz=1:length(fname)
             tmp = niftiread(fname{zz});
+            tmp = tmp(:,:,:,trs);
             mask4d = repmat(mask, [1,1,1,size(tmp,4)]);
             tmp = tmp .* cast(mask4d, 'like', tmp);
             data{zz} = tmp;

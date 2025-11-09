@@ -307,7 +307,7 @@ switch(what)
 
         %% load event file
         % events_file = fullfile(baseDir,behavDir,sprintf('sub-%s/glm_%d.tsv',subj_id,glm));
-        Dd = sss_GLM('GLM:get_event','sn',sn,'glm',glm);
+        Dd = sss_GLM('GLM:get_event','sn',sn,'glm',glm,'combineSR',combineSR);
 
         regressors = unique(Dd.eventname);
         nRegr = length(regressors);
