@@ -107,8 +107,8 @@ def plot_BF(xBF, ax=None):
 
 	return ax
 
-def norm_cmap(cmap=cm.jet, vmax=10, thresh=3.5):
-	gray = [0.5,0.5,0.5,1.0]
+def norm_cmap(cmap=cm.jet, vmax=10, thresh=3.5, alpha=1):
+	gray = [0.5,0.5,0.5,alpha]
 	## 색상 샘플링
 	colors = cmap(np.linspace(0, 1, 256))
 	## value range: -vmax, ..., -thresh, ..., 0, ..., thresh, ..., vmax
