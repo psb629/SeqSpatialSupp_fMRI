@@ -107,7 +107,7 @@ def plot_BF(xBF, ax=None):
 
 	return ax
 
-def norm_cmap(cmap=cm.jet, vmax=10, thresh=3.5, alpha=1):
+def cmap_norm(cmap=cm.jet, vmax=10, thresh=3.5, alpha=1):
 	gray = [0.5,0.5,0.5,alpha]
 	## 색상 샘플링
 	colors = cmap(np.linspace(0, 1, 256))
@@ -120,3 +120,15 @@ def norm_cmap(cmap=cm.jet, vmax=10, thresh=3.5, alpha=1):
 	cmap = mcolors.ListedColormap(colors)
 
 	return cmap
+
+def cmap_i2f(ini='#FFFFFF', fin='#000000'):
+	cmap = mcolors.LinearSegmentedColormap.from_list("cmap_i2f", [ini,fin])
+	return cmap
+
+def cmap_combine(cmap1, cmap2):
+	colors = np.vstack(
+		[cmap1(np.linspace(0,1,128)),cmap2(np.linspace(0,1,128))]
+	)
+	cmap = mcolors.LinearSegmentedColormap.from_list("custom_cmap", colors)
+	return cmap
+
