@@ -496,7 +496,7 @@ switch(what)
         dsave(fullfile(J.dir{1},'reginfo.tsv'), T);
 
         % run
-        spm_rwls_run_fmri_spec(J);
+        spm_rwls_run_fmri_spec(J); % https://github.com/jdiedrichsen/rwls.git
 
         % Save the GLM file for this subject.
         tmp = load(fullfile(J.dir{1},'SPM.mat'));
