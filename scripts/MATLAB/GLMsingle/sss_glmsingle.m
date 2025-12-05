@@ -266,7 +266,7 @@ switch(what)
     case 'WB:vol2surf'
         % https://github.com/DiedrichsenLab/surfAnalysis.git
         % https://github.com/nno/surfing.git
-        dir_work = fullfile(dir_glmsingle,glmDir,wbDir,subj_id);
+        dir_work = fullfile(dir_glmsingle,wbDir,glmDir,subj_id);
         if (~exist(dir_work,'dir'))
             mkdir(dir_work);
         end

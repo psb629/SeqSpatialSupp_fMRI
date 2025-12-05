@@ -580,7 +580,7 @@ switch(what)
         save(fullfile(dir_work,'SPM.mat'),'SPM','-v7.3');
 
         % extra contrasts
-        SPM = sss_GLM('GLM:custom_contrast','sn',sn,'glm',glm);
+        SPM = sss_GLM('GLM:custom_contrast','sn',sn,'glm',glm,'combineSR',combineSR);
 
         % run contrasts
         SPM = spm_contrasts(SPM,1:length(SPM.xCon));
