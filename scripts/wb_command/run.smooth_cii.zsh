@@ -30,6 +30,11 @@ EOF
 	shift ##takes one argument
 done
 ##############################################################
+if [[ -z "$input" ]]; then
+    echo "input is empty. Exiting."
+    exit 1
+fi
+##############################################################
 axis=${axis:u}
 fname=${input:t}
 dname=${input:h}
@@ -46,7 +51,8 @@ dir_fs=$HOME/github/fs_LR_32
 ##############################################################
 wb_command \
 	-cifti-smoothing $input \
-	2 2 $axis \
+	2 2 \
+	$axis \
 	$dname/smooth.$fname \
 	-left-surface $dir_fs/fs_LR.32k.L.midthickness.surf.gii \
 	-right-surface $dir_fs/fs_LR.32k.R.midthickness.surf.gii
