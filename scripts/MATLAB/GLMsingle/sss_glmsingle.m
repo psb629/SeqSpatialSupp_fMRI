@@ -59,7 +59,7 @@ switch(what)
         SPM = SPM.SPM;
         TR = SPM.xY.RT;
 
-        mask = niftiread(fullfile(baseDir,'glm_1',subj_id,'mask.nii'));
+        mask = niftiread(fullfile(baseDir,glmDir,subj_id,'mask.nii'));
 
         % load design matrix
         design = cell(1,length(SPM.Sess));
