@@ -1,0 +1,6 @@
+# Configuration file for PALM.
+# Version alpha119, running in MATLAB 24.1.0.3050227 (R2024a) Update 8.
+# 20-Feb-2026 14:04:57
+
+-i input.txt
+-o test
