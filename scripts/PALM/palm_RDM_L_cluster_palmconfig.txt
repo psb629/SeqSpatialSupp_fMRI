@@ -1,0 +1,12 @@
+# Configuration file for PALM.
+# Version (GitHub/commit:04095fe), running in Octave 8.4.0.
+# 20-Feb-2026 02:58:28
+
+-i /mnt/f/SeqSpatialSupp_fMRI/GLMsingle/surfaceWB/glm_1/cifti.L.glm_1.searchlight.mean_dist.first_finger.dscalar.nii
+-s /home/sungbeenpark/github/fs_LR_32/fs_LR.32k.L.midthickness.surf.gii
+-d /home/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/PALM/glm_1.searchlight/design.csv
+-t /home/sungbeenpark/github/SeqSpatialSupp_fMRI/scripts/PALM/glm_1.searchlight/contrast.csv
+-n 5000
+-C 3.1
+-Cstat extent
+-o palm_RDM_L_cluster
