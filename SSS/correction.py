@@ -210,7 +210,7 @@ def compute_cluster_pvals(tmap, thresh, null_dist, adj):
 
     return clusters, pvals
 
-def make_cluster_corrected_mask(tmap, clusters, pvals, alpha=0.5, fvalue=np.nan):
+def make_cluster_corrected_mask(tmap, clusters, pvals=None, N=40, alpha=0.5, fvalue=np.nan):
     """
     Create a cluster-corrected mask by retaining only clusters whose p-values
     survive a specified significance threshold.
@@ -238,9 +238,15 @@ def make_cluster_corrected_mask(tmap, clusters, pvals, alpha=0.5, fvalue=np.nan)
         Cluster-corrected mask. Significant clusters contain 1, and all
         non-significant vertices are filled with `fvalue`.
     """
+    if pvals == None:
+        pvals = np.array([None for c in clusters])
+        
     masked = np.ones_like(tmap) * np.nan
     for cluster, p in zip(clusters, pvals):
-        if p < alpha:
+        if p == None:
+            if len(cluster)>=N:
+                masked[cluster] = tmap[cluster]    
+        elif p < alpha:
             masked[cluster] = tmap[cluster]
 
     mask = np.where(np.isnan(masked), fvalue, 1)
