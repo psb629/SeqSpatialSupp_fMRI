@@ -293,6 +293,12 @@ switch(what)
                     V{f} = fullfile(fnames(f).folder, fnames(f).name);
                     cols{f} = fnames(f).name;
                 end
+            case 'R2' % mean volume
+                fnames = dir(fullfile(dir_glm,'R2.nii'));
+                for f = 1:length(fnames)
+                    V{f} = fullfile(fnames(f).folder, fnames(f).name);
+                    cols{f} = fnames(f).name;
+                end
         end
         writecell(cols, fullfile(dir_work,sprintf('%s.%s_orders.csv',subj_id,map)), 'Delimiter', 'tab');
 
