@@ -1,3 +1,6 @@
+import types
+import sys
+
 from os.path import join, exists
 from os import getcwd, makedirs, remove
 from glob import glob
@@ -7,6 +10,7 @@ import pandas as pd
 
 from SSS import util as su
 from SSS import deal_spm
+from SSS import glmsingle as ssingle
 
 from nilearn import image
 import nibabel as nb
@@ -14,6 +18,11 @@ import nibabel as nb
 import surfAnalysisPy as surf
 # import Functional_Fusion.atlas_map as am
 # import Functional_Fusion.reliability as rel
+
+gii = types.ModuleType("gii")
+nii = types.ModuleType("nii")
+
+dir_surf = join(ssingle.get_dir_glmsingle(),'surfaceWB')
 
 def get_list_roi():
 
@@ -155,6 +164,127 @@ def masking_data(data, mask):
 		res = data * mask
 
 	return nb.Nifti1Image(res, affine=affine, header=header)
+
+def gii_load_mask(fname):
+	"""
+	Load a GIFTI (.gii) label/mask file and extract its label information.
+	
+	Parameters
+	----------
+	fname : str
+		Path to the GIFTI label file to be loaded.
+
+	Returns
+	-------
+	img_mask : nibabel.gifti.GiftiImage
+		The loaded GIFTI image object containing label and metadata
+		information.
+	labels : ndarray of shape (K,)
+		Array of label names extracted from the file's label table.
+		The first entry (typically background) is excluded, and only
+		meaningful label names are returned.
+	"""
+	img_mask = nb.load(fname)
+ #	darray_mask = img_mask.darrays[0].data
+
+	labels = []
+	for ii, label in enumerate(img_mask.labeltable.labels):
+		if ii>0:
+			labels.append(label.label)
+	
+	return img_mask, np.array(labels)
+
+def gii_fast_masking(img_gii, img_mask, labels=None):
+	"""
+	Extract voxel-wise data from a GIFTI image based on label regions defined
+	in a corresponding GIFTI mask file.
+
+	Parameters
+	----------
+	img_gii : nibabel.gifti.GiftiImage
+		GIFTI image containing one or more data arrays (e.g., beta maps or
+		statistical values). Each darray is assumed to have the same spatial
+		dimensions as the mask.
+	img_mask : nibabel.gifti.GiftiImage
+		GIFTI label/mask image whose first data array encodes integer region
+		labels for each voxel.
+	labels : list of str or ndarray of shape (K,), optional
+		Optional list of label names corresponding to the non‑zero integer
+		values in the mask. If provided, these names are used as dictionary
+		keys; otherwise, the integer label values are converted to strings.
+
+	Returns
+	-------
+	betas : dict
+		A dictionary mapping each region label (string) to an array of shape
+		(D, N), where D is the number of data arrays in `img_gii` and N is the
+		number of voxels belonging to that region. Each entry contains the
+		extracted voxel values for that region across all data arrays.
+	"""
+	mask = img_mask.darrays[0].data
+
+	betas = {}
+	for ii, val in enumerate(np.unique(mask)):
+		if val == 0:
+			continue
+		key = str(val) if labels is None else labels[val-1]
+
+		tmp = []
+		for jj, darray in enumerate(img_gii.darrays):
+			data = darray.data
+			assert data.shape[:3]==mask.shape
+			idx = mask==val
+			tmp.append(data[idx])
+		betas[key] = np.array(tmp)
+
+	return betas
+
+def gii_get_masked_betas(img_mask, img_beta, img_residue=None, labels=None):
+	"""
+	Extract region‑wise beta values from a GIFTI image using a label mask,
+	and optionally compute normalized beta values using an accompanying R² map.
+
+	Parameters
+	----------
+	img_mask : nibabel.gifti.GiftiImage
+		GIFTI label/mask image whose first data array encodes integer region
+		labels for each voxel.
+	img_beta : nibabel.gifti.GiftiImage
+		GIFTI image containing beta values (or other statistical maps) stored
+		across one or more data arrays. Each array must match the spatial
+		dimensions of the mask.
+	img_residue : nibabel.gifti.GiftiImage, optional
+		Optional GIFTI image containing residual values aligned to the same space
+		as `img_beta`. If provided, region‑wise beta values are divided by
+		the corresponding R² values (with a small epsilon added for stability).
+	labels : list of str or ndarray of shape (K,), optional
+		Optional list of label names corresponding to the non‑zero integer
+		values in the mask. If provided, these names are used as dictionary
+		keys; otherwise, integer label values are converted to strings.
+
+	Returns
+	-------
+	betas : dict
+		Dictionary mapping each region label to an array of extracted beta
+		values with shape (D, N), where D is the number of data arrays in
+		`img_beta` and N is the number of voxels belonging to that region.
+		If `img_residue` is provided, these values are normalized by the R² map.
+	residue : dict or None
+		Dictionary containing region‑wise residual values extracted in the same
+		format as `betas`, or None if no residual image was provided.
+	"""
+	betas = gii_fast_masking(img_gii=img_beta, img_mask=img_mask, labels=labels)
+
+	residue = None
+	if not img_residue is None:
+		residue = gii_fast_masking(img_gii=img_residue, img_mask=img_mask, labels=labels)
+
+		tmp = {}
+		for key, beta in betas.items():
+			tmp[key] = beta/(residue[key]+1.e-8)
+			betas = tmp
+
+	return betas, residue
 
 def load_hrf_tune(subj, glm, roi, param=[6,16], hemi='L', map='beta'):
 	"""
@@ -397,3 +527,12 @@ def save_surf2cifti(data, label_axis, dir_output, prefix='p', type_='dscalar'):
 	if exists(fname):
 		remove(fname)
 	nb.save(cii, fname)
+
+
+gii.load_mask = gii_load_mask
+gii.fast_masking = gii_fast_masking
+gii.get_masked_betas = gii_get_masked_betas
+
+# image.gii, image.nii 로 import 가능하게 등록
+sys.modules[__name__ + ".gii"] = gii
+sys.modules[__name__ + ".nii"] = nii
