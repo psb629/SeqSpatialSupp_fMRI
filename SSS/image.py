@@ -289,7 +289,7 @@ def gii_get_masked_betas(img_mask, img_beta, img_residue=None, labels=None):
 	img_residue : nibabel.gifti.GiftiImage, optional
 		Optional GIFTI image containing residual values aligned to the same space
 		as `img_beta`. If provided, region‑wise beta values are divided by
-		the corresponding R² values (with a small epsilon added for stability).
+		the corresponding ResMS.nii values (with a small epsilon added for stability).
 	labels : list of str or ndarray of shape (K,), optional
 		Optional list of label names corresponding to the non‑zero integer
 		values in the mask. If provided, these names are used as dictionary
@@ -314,7 +314,7 @@ def gii_get_masked_betas(img_mask, img_beta, img_residue=None, labels=None):
 
 		tmp = {}
 		for key, beta in betas.items():
-			tmp[key] = beta/(residue[key]+1.e-8)
+			tmp[key] = beta/(np.sqrt(residue[key])+1.e-8)
 			betas = tmp
 
 	return betas, residue
