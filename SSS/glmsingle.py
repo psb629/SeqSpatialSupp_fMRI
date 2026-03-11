@@ -98,18 +98,18 @@ def load_model(subj, glm, type='D'):
 	return info
 
 def get_meanvol(subj, glm, type='D'):
-	mask = simage.load_mask(subj)
+	mask = simage.nii.load_individual_mask(subj=subj, glm=glm)
 
 	model = load_model(subj, glm, type=type)
 	meanvol = model['meanvol'][:].transpose(2,1,0)
 
 	meanvolnii = nb.Nifti1Image(meanvol, affine=mask.affine, header=mask.header)
-	meanvolnii = simage.masking_data(data=meanvolnii, mask=mask)
+	meanvolnii = simage.nii.fast_masking(nii_img=meanvolnii, nii_mask=mask, as_nii=True)
 
 	return meanvolnii
 
 def get_index_map(subj, glm, type='D', run=None):
-	mask = simage.load_mask(subj)
+	mask = simage.nii.load_individual_mask(subj=subj, glm=glm)
 
 	model = load_model(subj, glm, type=type)
 	if run == None:
@@ -118,30 +118,32 @@ def get_index_map(subj, glm, type='D', run=None):
 		HRFindex = model['HRFindexrun'][:][run-1].transpose(2,1,0)
 
 	hrfnii = nb.Nifti1Image(HRFindex, affine=mask.affine, header=mask.header)
-	hrfnii = simage.masking_data(data=hrfnii, mask=mask)
+	hrfnii = simage.nii.fast_masking(nii_img=hrfnii, nii_mask=mask, as_nii=True)
 
 	return hrfnii
 	
 def get_R2_map(subj, glm, type='D', run=None):
-	mask = simage.load_mask(subj)
+	mask = simage.nii.load_individual_mask(subj=subj, glm=glm)
 
 	model = load_model(subj, glm, type=type)
 	if run == None:
 		R2 = model['R2'][:].transpose(2,1,0)
 	else:
-		R2 = model['R2'][:][run-1].transpose(2,1,0)
+		R2 = model['R2run'][:][run-1].transpose(2,1,0)
 
 	r2nii = nb.Nifti1Image(R2, affine=mask.affine, header=mask.header)
-	r2nii = simage.masking_data(data=r2nii, mask=mask)
+	r2nii = simage.nii.fast_masking(nii_img=r2nii, nii_mask=mask, as_nii=True)
 
 	return r2nii
 
 def get_beta_map(subj, glm, type='D', run=None):
-	mask = simage.load_mask(subj)
+	mask = simage.nii.load_individual_mask(subj=subj, glm=glm)
 
 	model = load_model(subj, glm, type=type)
-	betas = model['modelmd'][:].transpose(3,2,1,0)
-	betanii = nb.Nifti1Image(betas, affine=mask.affine, header=mask.header)
+	beta = model['modelmd'][:].transpose(3,2,1,0)
+
+	betanii = nb.Nifti1Image(beta, affine=mask.affine, header=mask.header)
+	betanii = simage.nii.fast_masking(nii_img=betanii, nii_mask=mask, as_nii=True)
 
 	return betanii
 

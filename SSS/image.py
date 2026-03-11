@@ -19,14 +19,11 @@ import surfAnalysisPy as surf
 # import Functional_Fusion.atlas_map as am
 # import Functional_Fusion.reliability as rel
 
-gii = types.ModuleType("gii")
 nii = types.ModuleType("nii")
+gii = types.ModuleType("gii")
+cii = types.ModuleType("cii")
 
 dir_surf = join(ssingle.get_dir_glmsingle(),'surfaceWB')
-
-def get_list_roi():
-
-	return np.array(['S1', 'M1', 'PMd', 'PMv', 'SMA', 'V1', 'SPLa', 'SPLp'])
 
 def get_underlay(path_surfAnalysisPy, hemi='L'):
 	hemi_ = hemi.upper()
@@ -55,19 +52,55 @@ def get_border(dir_git, atlas=None, hemi='L'):
 
 	return path_border, labels
 
-def load_mask(subj, glm=1, as_nii=True):
-	"""
-	Return
-		mask image: nifti
-	"""
+ #def load_mask(subj, glm=1, as_nii=True):
+ #	"""
+ #	Return
+ #		mask image: nifti
+ #	"""
+ #	dir_glm = su.get_dir_glm(glm)
+ #	mask = join(dir_glm,subj,'mask.nii')
+ #	img = nb.load(mask)
+ #
+ #	if as_nii:
+ #		return img
+ #	else:
+ #		return img.get_fdata(), img.affine, img.header
+
+def nii_load_individual_mask(subj, glm=1):
 	dir_glm = su.get_dir_glm(glm)
-	mask = join(dir_glm,subj,'mask.nii')
+	mask = join(dir_glm, subj, 'mask.nii')
 	img = nb.load(mask)
 
+	return img
+
+def nii_fast_masking(nii_img, nii_mask, as_nii=False):
+	affine = nii_mask.affine
+	header = nii_mask.header
+
+	V = nii_mask.shape
+	T = nii_img.shape[-1] if len(nii_img.shape) > 3 else 0
+	assert (nii_img.affine == affine).all(), "The image and mask are not matched"
+	assert nii_img.shape[:3] == V, "The imgae and mask are not matched"
+
+	mask = nii_mask.get_fdata().astype(bool)
+	mask_flat = mask.reshape(-1)
+
+	img = nii_img.get_fdata()
+
 	if as_nii:
-		return img
+		if T:
+			res = np.zeros_like(img)
+			for t in np.arange(T):
+				res[...,t] = img[...,t] * mask
+		else:
+			res = img * mask
+		return nb.Nifti1Image(res, affine=affine, header=header)
 	else:
-		return img.get_fdata(), img.affine, img.header
+		if T:
+			img_flat = img.reshape(-1,T)
+			return img_flat[mask_flat,:]
+		else:
+			return img.reshape(-1)[mask_flat]
 
 def load_summed_roi(subj, list_roi):
 	"""
@@ -139,31 +172,31 @@ def trim_ydata(ydata, glm, subj, as_nii=True):
 	else:
 		return ydata
 
-def masking_data(data, mask):
-	"""
-	Return
-		data: nifti 
-			Volumn X K
-		mask: nifti
-			Volumn
-	"""
-	affine = mask.affine
-	header = mask.header
-	assert (data.affine == affine).all(), "The data and mask are not matched"
-	assert data.shape[:3] == mask.shape, "The data and mask are not matched"
-
-	data = data.get_fdata()
-	mask = mask.get_fdata()
-	#mask[mask==0] = np.nan
-
-	res = np.ones(data.shape) * np.nan
-	if len(data.shape)>3:
-		for t in np.arange(data.shape[-1]):
-			res[...,t] = data[...,t] * mask
-	else:
-		res = data * mask
-
-	return nb.Nifti1Image(res, affine=affine, header=header)
+ #def masking_data(data, mask):
+ #	"""
+ #	Return
+ #		data: nifti 
+ #			Volumn X K
+ #		mask: nifti
+ #			Volumn
+ #	"""
+ #	affine = mask.affine
+ #	header = mask.header
+ #	assert (data.affine == affine).all(), "The data and mask are not matched"
+ #	assert data.shape[:3] == mask.shape, "The data and mask are not matched"
+ #
+ #	data = data.get_fdata()
+ #	mask = mask.get_fdata()
+ #	#mask[mask==0] = np.nan
+ #
+ #	res = np.ones(data.shape) * np.nan
+ #	if len(data.shape)>3:
+ #		for t in np.arange(data.shape[-1]):
+ #			res[...,t] = data[...,t] * mask
+ #	else:
+ #		res = data * mask
+ #
+ #	return nb.Nifti1Image(res, affine=affine, header=header)
 
 def gii_load_mask(fname):
 	"""
@@ -529,10 +562,13 @@ def save_surf2cifti(data, label_axis, dir_output, prefix='p', type_='dscalar'):
 	nb.save(cii, fname)
 
 
+nii.load_individual_mask = nii_load_individual_mask
+nii.fast_masking = nii_fast_masking
 gii.load_mask = gii_load_mask
 gii.fast_masking = gii_fast_masking
 gii.get_masked_betas = gii_get_masked_betas
 
 # image.gii, image.nii 로 import 가능하게 등록
-sys.modules[__name__ + ".gii"] = gii
 sys.modules[__name__ + ".nii"] = nii
+sys.modules[__name__ + ".gii"] = gii
+sys.modules[__name__ + ".cii"] = cii
