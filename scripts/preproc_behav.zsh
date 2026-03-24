@@ -16,6 +16,7 @@ while (( $# )); do
 done
 ## ======================================= ##
 dir_work="/Users/sungbeenpark/Downloads/sub-$subj"
+## ======================================= ##
 fname="$dir_work/sslb2_$subj.dat"
 mv $fname $dir_work/tmp.dat
 ## ======================================= ##
