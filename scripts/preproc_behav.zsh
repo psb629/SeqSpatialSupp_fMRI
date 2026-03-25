@@ -18,6 +18,5 @@ done
 dir_work="/Users/sungbeenpark/Downloads/sub-$subj"
 ## ======================================= ##
 fname="$dir_work/sslb2_$subj.dat"
-mv $fname $dir_work/tmp.dat
 ## ======================================= ##
-sed 's/\.000//g; s/\t$//' $dir_work/tmp.dat > $fname
+sed -i '' 's/\.000//g' $fname
